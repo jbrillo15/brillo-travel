@@ -12,11 +12,11 @@ macOS keychain, or `~/.config/brillo-travel/secrets.json`, and nowhere else.
 
 ## Part A · One-time setup (Phase 0)
 
-### A1. Create the `brillofy` GitHub account (due Oct 8)
+### A1. GitHub account ✅ (Oct 13: using Jordan's personal account `jbrillo15`)
 
-1. Go to github.com → **Sign up**. Username: `brillofy`. Use any email you like.
-2. Turn on two-factor authentication when GitHub offers it (Settings → Password and authentication).
-3. **Hide your email from public commits:** Settings → **Emails** → tick **Keep my email addresses private**. GitHub then shows an address like `12345678+brillofy@users.noreply.github.com`.
+1. ~~Create an account~~ Using the existing personal account `jbrillo15`.
+2. Turn on two-factor authentication if it isn't already (Settings → Password and authentication).
+3. **Hide your email from public commits:** Settings → **Emails** → tick **Keep my email addresses private** and **Block command line pushes that expose my email**. ✅ Noreply address received Oct 13.
 
 **Send the builder:** that `…@users.noreply.github.com` address. It goes on every commit, so your real email never appears in the public repo.
 
@@ -30,7 +30,7 @@ Do this twice, once for each name:
 | `brillo-travel` | the real app |
 
 1. Top-right **+** → **New repository**.
-2. Owner `brillofy`, name as above, **Public**.
+2. Owner `jbrillo15`, name as above, **Public**.
 3. **Leave everything else unticked:** no README, no .gitignore, no license. (The builder pushes those.)
 4. **Create repository.**
 
@@ -46,7 +46,7 @@ This is the password git uses. It's scoped to just these two repos.
 4. Permissions → Repository permissions → **Contents: Read and write**. (Metadata: Read-only gets added automatically.)
 5. **Generate token.** Copy it. GitHub shows it only once.
 6. Store it: the builder will give you one `git push` command to run in a Terminal tab. When it asks:
-   - Username: `brillofy`
+   - Username: `jbrillo15`
    - Password: **paste the token** (nothing appears as you paste; that's normal)
 
    macOS saves it in your keychain, so you won't be asked again.
@@ -101,8 +101,8 @@ open -e ~/.config/brillo-travel/secrets.json
 
 For each repo: **Settings → Pages** → Source **Deploy from a branch** → Branch **main**, folder **/ (root)** → **Save**. After a minute the site is live at:
 
-- `https://brillofy.github.io/brillo-travel-staging/`
-- `https://brillofy.github.io/brillo-travel/`
+- `https://jbrillo15.github.io/brillo-travel-staging/`
+- `https://jbrillo15.github.io/brillo-travel/`
 
 ---
 
