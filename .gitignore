@@ -1,0 +1,16 @@
+# Secrets and per-machine config (staging token, Apps Script URLs). Never commit.
+local/
+
+# Trip data must never reach the public repo (HANDOFF §18 rule 9).
+# HANDOFF.md itself holds booking refs, confirmation numbers and health details.
+HANDOFF.md
+# Design preview uses real trip details so it feels like theirs; local only.
+docs/style-preview.html
+*.xlsx
+*.csv
+exports/
+
+# macOS / iCloud noise
+.DS_Store
+*.icloud
+Icon?

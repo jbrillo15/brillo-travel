@@ -1,0 +1,433 @@
+/* Brillo Travel — design tokens and components. Spec: docs/DESIGN.md.
+   Dark shell only (HANDOFF §9). Staff cards (.staff-card) are light on purpose.
+   Every color pair used for text is checked by tests/contrast_check.py. */
+
+:root {
+  color-scheme: dark;
+
+  /* Shell neutrals: ink navy, hue-biased toward blue */
+  --bg: #0D1322;
+  --surface-1: #151D31;
+  --surface-2: #1E2840;
+  --surface-3: #28334F;
+  --line: #2B3652;
+  --line-strong: #3B4868;
+  --text: #EDF0F7;
+  --text-2: #A8B2C8;
+  --text-3: #8792AC;
+  --on-fill: #0D1322;          /* text on any pastel or light fill */
+
+  /* Places: one pastel per city, plus travel days */
+  --osaka: #F2A7C3;            /* Dotonbori neon pink */
+  --kyoto: #B9D795;            /* matcha */
+  --tokyo: #B4ADF2;            /* Shinjuku-night lavender */
+  --travel: #8FCBEA;           /* sky */
+
+  /* Reserved meanings */
+  --now: #F0CF76;              /* Now / Next only */
+  --ok: #74D3B8;               /* on track, done */
+  --close: #F2A469;            /* getting close, overdue, allergy Caution */
+  --over: #FF8F8F;             /* over budget */
+  --allergy: #FF5A2E;          /* allergy danger ONLY: High badges and the allergy card. */
+
+  /* Staff cards (light) */
+  --paper: #FBF8F1;
+  --paper-ink: #12151C;
+  --paper-ink-2: #4A5163;
+  --paper-line: #E3DED2;
+  --paper-allergy: #B3290C;
+
+  /* Type */
+  --font-display: "Fraunces", ui-serif, "Iowan Old Style", Georgia, serif;
+  --font-body: -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-ja: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif;
+
+  /* Scale in rem; 1rem = 17px and grows with iOS Text Size. max() keeps the
+     HANDOFF §9 minimums when Text Size is set smaller than default. */
+  --fs-caption: max(0.8rem, 13px);     /* 13.6 — the floor */
+  --fs-secondary: max(0.9rem, 15px);   /* 15.3 */
+  --fs-body: max(1rem, 17px);          /* 17 */
+  --fs-title-3: 1.25rem;       /* 21 */
+  --fs-title-2: 1.5rem;        /* 25.5 */
+  --fs-title-1: 2rem;          /* 34 */
+  --fs-display: 2.75rem;       /* 47 */
+  --fs-card-ja: max(2rem, 32px);         /* 34, staff-card Japanese (>= 32) */
+  --fs-card-allergen: max(2.6rem, 40px); /* 44, allergen word (>= 40) */
+  --fs-card-ref: max(2.6rem, 40px);      /* 44, booking numbers */
+
+  /* Space (4-based) and shape */
+  --sp-1: 0.25rem; --sp-2: 0.5rem; --sp-3: 0.75rem; --sp-4: 1rem;
+  --sp-5: 1.5rem;  --sp-6: 2rem;   --sp-7: 3rem;
+  --r-chip: 6px;
+  --r-card: 16px;
+  --r-sheet: 24px;
+  --tap: 44px;
+}
+
+html { font-size: 17px; }
+/* iOS only: tie 1rem to the Text Size setting */
+@supports (font: -apple-system-body) and (-webkit-touch-callout: none) {
+  html { font: -apple-system-body; }
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+}
+
+:lang(ja), .ja { font-family: var(--font-ja); }
+.num { font-variant-numeric: tabular-nums; }
+
+h1, h2, h3, .display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-variation-settings: "SOFT" 60;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  margin: 0;
+}
+h1 { font-size: var(--fs-title-1); line-height: 1.1; }
+h2 { font-size: var(--fs-title-2); line-height: 1.15; }
+h3 { font-size: var(--fs-title-3); line-height: 1.2; }
+
+.eyebrow {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.secondary { font-size: var(--fs-secondary); color: var(--text-2); }
+
+:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+/* City context: set on any container, children use var(--city) */
+.city-osaka  { --city: var(--osaka); }
+.city-kyoto  { --city: var(--kyoto); }
+.city-tokyo  { --city: var(--tokyo); }
+.city-travel { --city: var(--travel); }
+
+/* ---------- Buttons ---------- */
+.btn {
+  min-height: var(--tap);
+  padding: 0 var(--sp-4);
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  color: var(--text);
+  font: 600 var(--fs-secondary)/1 var(--font-body);
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:active { background: var(--surface-3); }
+.btn-primary { background: var(--text); border-color: var(--text); color: var(--on-fill); }
+.btn-primary:active { background: var(--text-2); }
+.btn-quiet { background: transparent; border-color: transparent; color: var(--text-2); }
+.btn svg { width: 18px; height: 18px; flex: none; }
+
+/* ---------- Day badge (station-number style) ---------- */
+.day-badge {
+  display: inline-grid; place-items: center;
+  min-width: 2.6rem; height: 2.6rem;
+  border: 3px solid var(--city);
+  border-radius: 10px;
+  background: var(--bg);
+  font: 700 var(--fs-secondary)/1 var(--font-body);
+  color: var(--text);
+  text-align: center;
+}
+.day-badge .glyph { font-size: var(--fs-title-3); color: var(--city); }
+.day-badge b { display: block; font-size: var(--fs-caption); color: var(--city); letter-spacing: 0.04em; }
+
+/* ---------- Top bar ---------- */
+/* Row 1: day badge, day line, Cards. Row 2: greeting, full width. */
+.topbar {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+}
+.topbar .who { min-width: 0; }
+.topbar .greeting { grid-column: 1 / -1; font-family: var(--font-display); font-variation-settings: "SOFT" 60; font-size: var(--fs-title-2); line-height: 1.15; }
+.topbar .dayline { font-size: var(--fs-secondary); color: var(--city, var(--text-2)); font-weight: 600; }
+
+/* ---------- Sync status ---------- */
+.sync {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  font-size: var(--fs-caption); color: var(--text-2);
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: 999px;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+}
+.sync::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+.sync[data-state="waiting"]::before { background: transparent; border: 2px solid var(--text-2); width: 6px; height: 6px; }
+.sync[data-state="offline"]::before { background: transparent; border: 2px dashed var(--text-3); width: 6px; height: 6px; }
+.sync[data-state="problem"] { color: var(--text); border-color: var(--line-strong); }
+.sync[data-state="problem"]::before { content: "!"; width: 16px; height: 16px; border-radius: 50%; background: var(--text); color: var(--on-fill); font-weight: 800; font-size: 13px; line-height: 16px; text-align: center; }
+
+/* ---------- Banner (system states are neutral) ---------- */
+.banner {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+}
+.banner .msg { flex: 1; min-width: 0; font-size: var(--fs-secondary); }
+.banner .msg strong { display: block; font-size: var(--fs-body); color: var(--text); }
+.banner .msg span { color: var(--text-2); }
+.staging-ribbon {
+  text-align: center;
+  font: 800 var(--fs-caption)/1 var(--font-body);
+  letter-spacing: 0.2em;
+  color: var(--on-fill);
+  padding: 6px 0;
+  background: repeating-linear-gradient(-45deg, var(--text-2) 0 10px, var(--text-3) 10px 20px);
+}
+
+/* ---------- Now / Next ---------- */
+.now-next {
+  background: var(--surface-1);
+  border: 1px solid color-mix(in srgb, var(--now) 45%, var(--line));
+  border-radius: var(--r-card);
+  padding: var(--sp-4);
+  display: grid; gap: var(--sp-4);
+}
+.nn-row { display: grid; grid-template-columns: auto 1fr; gap: var(--sp-3); align-items: start; }
+.nn-tag {
+  font: 800 var(--fs-caption)/1 var(--font-body);
+  letter-spacing: 0.1em;
+  padding: 6px 8px;
+  border-radius: var(--r-chip);
+  background: var(--now); color: var(--on-fill);
+  margin-top: 2px;
+  min-width: 3.7rem; text-align: center; box-sizing: border-box;
+}
+.nn-row.next .nn-tag { background: transparent; color: var(--now); box-shadow: inset 0 0 0 1.5px var(--now); }
+.nn-title { font-size: var(--fs-title-3); font-family: var(--font-display); font-variation-settings: "SOFT" 60; line-height: 1.2; }
+.nn-meta { font-size: var(--fs-secondary); color: var(--text-2); }
+.nn-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+
+/* ---------- Itinerary (the day drawn as a train line) ---------- */
+.line { list-style: none; margin: 0; padding: 0; position: relative; }
+.stop {
+  position: relative;
+  display: grid; grid-template-columns: 4.6rem 1.5rem 1fr; column-gap: var(--sp-2);
+  padding-block: var(--sp-3);
+  min-height: var(--tap);
+}
+.stop .time { font-size: var(--fs-secondary); color: var(--text-2); font-variant-numeric: tabular-nums; text-align: right; padding-top: 1px; white-space: nowrap; }
+.stop .rail { position: relative; }
+.stop .rail::before {                     /* the line */
+  content: ""; position: absolute; left: 50%; top: calc(-1 * var(--sp-3)); bottom: calc(-1 * var(--sp-3));
+  width: 4px; margin-left: -2px; background: var(--city); opacity: 0.85;
+}
+.stop:first-child .rail::before { top: 0.7rem; }
+.stop:last-child .rail::before { bottom: auto; height: calc(var(--sp-3) + 0.7rem); }
+.stop:only-child .rail::before { display: none; }
+.stop .rail::after {                      /* the station */
+  content: ""; position: absolute; left: 50%; top: 0.3rem;
+  width: 14px; height: 14px; margin-left: -7px; border-radius: 50%;
+  background: var(--bg); border: 3px solid var(--city); box-sizing: border-box;
+}
+.stop.is-now .rail::after { background: var(--now); border-color: var(--now); box-shadow: 0 0 0 5px color-mix(in srgb, var(--now) 25%, transparent); }
+.stop.is-done .rail::after { background: var(--city); }
+.stop.is-done .title { color: var(--text-2); }
+.stop .body { min-width: 0; display: grid; gap: 2px; }
+.stop .title { font-weight: 600; }
+.stop .place-ja { font-size: var(--fs-secondary); color: var(--text-2); }
+.stop .meta { font-size: var(--fs-secondary); color: var(--text-2); display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); align-items: center; }
+
+/* ---------- Allergy badges ---------- */
+.allergy-badge {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 28px; padding: 0 10px;
+  border-radius: 999px;
+  font: 700 var(--fs-caption)/1 var(--font-body);
+  border: 0; cursor: pointer;
+}
+/* Looks 28px tall, taps as 44px */
+.allergy-badge::before { content: ""; position: absolute; inset: -8px -4px; }
+.allergy-badge.high { background: var(--allergy); color: var(--on-fill); }
+.allergy-badge.caution { background: transparent; color: var(--close); box-shadow: inset 0 0 0 1.5px var(--close); }
+
+/* ---------- Hotel card (in-app) ---------- */
+.hotel {
+  background: var(--surface-1);
+  border-radius: var(--r-card);
+  border: 1px solid var(--line);
+  padding: var(--sp-4);
+  display: grid; gap: var(--sp-3);
+}
+.hotel .name { font-family: var(--font-display); font-variation-settings: "SOFT" 60; font-size: var(--fs-title-3); line-height: 1.2; }
+.hotel .name-ja { font-size: var(--fs-body); color: var(--text-2); }
+.hotel .facts { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); font-size: var(--fs-secondary); color: var(--text-2); }
+.hotel .facts b { color: var(--text); font-weight: 600; }
+.hotel .actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+
+/* ---------- Budget meter ---------- */
+.budget {
+  --state: var(--ok);
+  background: var(--surface-1);
+  border-radius: var(--r-card);
+  border: 1px solid var(--line);
+  padding: var(--sp-4);
+  display: grid; gap: var(--sp-3);
+}
+.budget[data-state="close"] { --state: var(--close); }
+.budget[data-state="over"]  { --state: var(--over); }
+.budget .head { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-3); }
+.budget .status { font: 700 var(--fs-caption)/1 var(--font-body); color: var(--state); display: inline-flex; gap: 6px; align-items: center; }
+.budget .status::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--state); }
+.budget .left { font: 650 var(--fs-title-1)/1 var(--font-body); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; color: var(--text); }
+.budget .left small { font-size: var(--fs-body); font-weight: 500; color: var(--text-2); letter-spacing: 0; margin-left: var(--sp-2); }
+.meter { height: 12px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.meter i { display: block; height: 100%; width: var(--fill, 0%); background: var(--state); border-radius: inherit; }
+.budget[data-state="over"] .meter i {
+  background: repeating-linear-gradient(-45deg, var(--over) 0 6px, color-mix(in srgb, var(--over) 70%, var(--surface-3)) 6px 12px);
+}
+.budget .foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--sp-2); font-size: var(--fs-secondary); color: var(--text-2); }
+
+/* ---------- Checklist row ---------- */
+.checks { list-style: none; margin: 0; padding: 0; }
+/* The whole row toggles (row click handler); the ring is the 44pt button for VoiceOver. */
+.check {
+  cursor: pointer;
+  display: grid; grid-template-columns: var(--tap) 1fr; gap: var(--sp-2); align-items: center;
+  padding-block: var(--sp-2);
+  border-bottom: 1px solid var(--line);
+}
+.check:last-child { border-bottom: 0; }
+.check button.box {
+  width: var(--tap); height: var(--tap); border: 0; background: transparent; padding: 0; cursor: pointer;
+  display: grid; place-items: center;
+}
+.check button.box span {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 2px solid var(--text-3);
+  display: grid; place-items: center;
+}
+.check.is-done button.box span { background: var(--ok); border-color: var(--ok); }
+.check.is-done button.box span::after { content: ""; width: 10px; height: 6px; border: solid var(--on-fill); border-width: 0 0 2.5px 2.5px; transform: translateY(-1px) rotate(-45deg); }
+.check .label { font-size: var(--fs-body); }
+.check.is-done .label { color: var(--text-2); text-decoration: line-through; text-decoration-color: var(--text-3); }
+.check .meta { font-size: var(--fs-secondary); color: var(--text-2); }
+.check .meta .overdue { color: var(--close); font-weight: 600; }
+.bag-head { display: flex; justify-content: space-between; align-items: baseline; padding-top: var(--sp-4); }
+
+/* ---------- Idea card ---------- */
+.idea {
+  background: var(--surface-1);
+  border-radius: var(--r-card);
+  border: 1px solid var(--line);
+  padding: var(--sp-4);
+  display: grid; gap: var(--sp-3);
+}
+.idea .top { display: flex; justify-content: space-between; gap: var(--sp-3); align-items: start; }
+.idea .name { font-family: var(--font-display); font-variation-settings: "SOFT" 60; font-size: var(--fs-title-3); line-height: 1.2; }
+.idea .name-ja { font-size: var(--fs-secondary); color: var(--text-2); }
+.idea .dist { flex: none; text-align: right; font-size: var(--fs-secondary); color: var(--text-2); font-variant-numeric: tabular-nums; }
+.idea .dist b { display: block; color: var(--text); font-size: var(--fs-body); }
+.idea .why { margin: 0; }
+.chip {
+  display: inline-flex; align-items: center; min-height: 26px; padding: 0 10px;
+  border-radius: var(--r-chip);
+  background: var(--surface-2); color: var(--text-2);
+  font: 600 var(--fs-caption)/1 var(--font-body);
+}
+.idea .allergy-note { display: flex; gap: var(--sp-2); align-items: start; font-size: var(--fs-secondary); color: var(--text-2); }
+.idea .actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+
+/* ---------- Tab bar ---------- */
+.tabbar {
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  background: var(--bg);  /* opaque: content scrolling under it can't weaken label contrast */
+  border-top: 1px solid var(--line);
+  padding: var(--sp-1) var(--sp-2) calc(var(--sp-1) + env(safe-area-inset-bottom, 0px));
+}
+.tab {
+  min-height: 52px; border: 0; background: transparent; cursor: pointer;
+  display: grid; justify-items: center; align-content: center; gap: 3px;
+  color: var(--text-3);
+  font: 600 var(--fs-caption)/1 var(--font-body);
+}
+.tab svg { width: 24px; height: 24px; }
+.tab[aria-current="page"] { color: var(--text); }
+.tab[aria-current="page"] svg { stroke-width: 2.2; }
+
+/* ---------- Staff cards (light, on purpose) ---------- */
+.staff-card {
+  background: var(--paper);
+  color: var(--paper-ink);
+  border-radius: var(--r-sheet);
+  padding: var(--sp-5) var(--sp-4);
+  display: grid; gap: var(--sp-4);
+  color-scheme: light;
+}
+.staff-card .ja-xl { font-family: var(--font-ja); font-size: var(--fs-card-ja); font-weight: 700; line-height: 1.35; }
+.staff-card .en { font-size: var(--fs-secondary); color: var(--paper-ink-2); }
+.staff-card hr { border: 0; border-top: 1px solid var(--paper-line); margin: 0; width: 100%; }
+.staff-card .allergen { font-family: var(--font-ja); font-size: var(--fs-card-allergen); font-weight: 800; color: var(--paper-allergy); letter-spacing: 0.04em; line-height: 1.2; }
+.staff-card .label { font: 700 var(--fs-caption)/1.2 var(--font-body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--paper-ink-2); }
+.staff-card .band {
+  margin: calc(-1 * var(--sp-5)) calc(-1 * var(--sp-4)) 0;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-sheet) var(--r-sheet) 0 0;
+  background: var(--allergy); color: var(--on-fill);
+  font: 800 var(--fs-secondary)/1.2 var(--font-body); letter-spacing: 0.04em;
+}
+.staff-card .ja-addr { font-family: var(--font-ja); font-size: var(--fs-card-ja); font-weight: 600; line-height: 1.4; }
+.staff-card .ref { font: 800 var(--fs-card-ref)/1.1 var(--font-body); font-variant-numeric: tabular-nums; letter-spacing: 0.06em; color: var(--paper-ink); word-spacing: 0.15em; }  /* app groups digits in 4s so lines break between groups */
+/* Allergy card before the professional text is marked verified (AC-C2). No band, no Japanese. */
+.staff-card.is-unset { border: 2px dashed var(--paper-ink-2); }
+.staff-card.is-unset .title { font: 700 var(--fs-title-3)/1.25 var(--font-body); color: var(--paper-ink); }
+.staff-card .tel { font: 700 var(--fs-title-3)/1.2 var(--font-body); font-variant-numeric: tabular-nums; color: var(--paper-ink); }
+.staff-card .hint { font-size: var(--fs-secondary); color: var(--paper-ink-2); }
+
+/* ---------- Pictograms ----------
+   Line icons in the style of Japanese public signage (inline SVG symbols,
+   24 x 24, 1.8 stroke). Always next to a text label, never instead of one.
+   Color: the city on itinerary items, neutral everywhere else. */
+.pict-tile {
+  display: grid; place-items: center; flex: none;
+  width: 2.75rem; height: 2.75rem; border-radius: 12px;
+  background: var(--surface-2); color: var(--text);   /* neutral by default, even inside a .city-* screen */
+}
+.pict-tile svg { width: 1.6rem; height: 1.6rem; }
+.stop .title { display: flex; gap: var(--sp-2); align-items: flex-start; }
+.stop .title svg { width: 1.25rem; height: 1.25rem; flex: none; margin-top: 2px; color: var(--city); }
+.stop.is-done .title svg { opacity: 0.7; }
+.nn-title { display: flex; gap: var(--sp-2); align-items: flex-start; }
+.nn-title svg { width: 1.35rem; height: 1.35rem; flex: none; margin-top: 3px; color: var(--city, var(--text)); }
+.bag-head h3 { display: flex; gap: var(--sp-2); align-items: center; }
+.bag-head h3 svg { width: 1.4rem; height: 1.4rem; color: var(--text-2); }
+
+/* Quick searches (Nearby): 4-across pictogram tiles */
+/* 4 across at default Text Size; drops to 3 when larger text makes tiles too narrow */
+.quick { display: grid; grid-template-columns: repeat(auto-fit, minmax(max(4.4rem, 22%), 1fr)); gap: var(--sp-2); }
+.quick-btn {
+  min-height: 4.75rem; padding: var(--sp-2) 4px;
+  display: grid; justify-items: center; align-content: center; gap: 6px;
+  background: var(--surface-1); border: 1px solid var(--line); border-radius: 14px;
+  color: var(--text); font: 600 var(--fs-caption)/1.15 var(--font-body); text-align: center;
+  overflow-wrap: anywhere; hyphens: auto; -webkit-hyphens: auto; min-width: 0;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.quick-btn:active { background: var(--surface-3); }
+.quick-btn svg { width: 1.6rem; height: 1.6rem; }
+/* Searches that need the allergy card first (Sushi): amber = caution */
+.quick-btn.caution { border-color: var(--close); box-shadow: inset 0 0 0 1px var(--close); }
+.quick-note { font-size: var(--fs-secondary); color: var(--text-2); }
+.quick-note b { color: var(--close); font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
