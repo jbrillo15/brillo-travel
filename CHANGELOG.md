@@ -4,6 +4,10 @@ Versions follow semantic versioning. 0.x during the build; 1.0.0 is the trip
 release. The version here must match `js/config.js` and the service worker
 cache name (a unit test checks this).
 
+## 0.1.1 (staging)
+
+- After a successful setup-code paste, the "Setup code needed" banner no longer lingers until the next screen change. Found in the first live end-to-end check.
+
 ## 0.1.0 (staging)
 
 Phase 1, the read path (HANDOFF §14).

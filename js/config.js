@@ -5,7 +5,7 @@
   var BT = window.BT = window.BT || {};
 
   BT.config = {
-    version: '0.1.0',
+    version: '0.1.1',
     api: 1,
     requestTimeoutMs: 20000,
     autoSyncMs: 5 * 60 * 1000,
