@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Brillo Spike">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0D1322">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Brillo Spike</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0D1322; --surface-1: #151D31; --surface-2: #1E2840; --line: #2B3652;
+    --text: #EDF0F7; --text-2: #A8B2C8; --text-3: #8792AC; --on-fill: #0D1322;
+    --ok: #74D3B8; --over: #FF8F8F; --now: #F0CF76;
+  }
+  html { font-size: 17px; }
+  @supports (font: -apple-system-body) and (-webkit-touch-callout: none) {
+    html { font: -apple-system-body; }
+  }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: max(1rem, 17px); line-height: 1.45;
+    padding: calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 32px);
+  }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .sub { color: var(--text-2); font-size: max(0.9rem, 15px); margin: 0 0 16px; }
+  .card { background: var(--surface-1); border: 1px solid var(--line); border-radius: 16px; padding: 14px; margin: 0 0 12px; }
+  .card h2 { font-size: 1.05rem; margin: 0 0 4px; display: flex; gap: 8px; align-items: baseline; }
+  .card h2 .id { color: var(--text-3); font-size: max(0.8rem, 13px); font-weight: 600; }
+  .how { color: var(--text-2); font-size: max(0.9rem, 15px); margin: 0 0 10px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; }
+  button, .btn {
+    min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--surface-2); color: var(--text); font: inherit; font-size: max(0.9rem, 15px);
+    display: inline-flex; align-items: center; text-decoration: none; cursor: pointer;
+  }
+  button.primary { background: var(--text); color: var(--on-fill); border-color: var(--text); font-weight: 600; }
+  button.pass { border-color: var(--ok); color: var(--ok); }
+  button.fail { border-color: var(--over); color: var(--over); }
+  .status { font-size: max(0.8rem, 13px); font-weight: 700; letter-spacing: 0.06em; padding: 2px 8px; border-radius: 6px; margin-left: auto; }
+  .status.pass { background: var(--ok); color: var(--on-fill); }
+  .status.fail { background: var(--over); color: var(--on-fill); }
+  .status.todo { background: var(--surface-2); color: var(--text-3); }
+  .detail { font-size: max(0.8rem, 13px); color: var(--text-2); margin: 8px 0 0; white-space: pre-wrap; word-break: break-word; }
+  .link-item { border-top: 1px solid var(--line); padding: 10px 0 2px; margin-top: 10px; }
+  .link-item:first-of-type { border-top: 0; margin-top: 0; }
+  textarea, input, select {
+    width: 100%; box-sizing: border-box; min-height: 44px; border-radius: 12px; border: 1px solid var(--line);
+    background: var(--surface-2); color: var(--text); font: inherit; font-size: 16px; padding: 10px;
+  }
+  textarea { min-height: 88px; }
+  .ja { font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif; }
+  .ribbon { display: inline-block; background: var(--now); color: var(--on-fill); font-weight: 800; font-size: max(0.8rem, 13px); letter-spacing: 0.08em; padding: 2px 8px; border-radius: 6px; }
+  #toast { position: fixed; left: 16px; right: 16px; bottom: calc(env(safe-area-inset-bottom) + 16px); background: var(--text); color: var(--on-fill); padding: 12px 16px; border-radius: 12px; font-weight: 600; display: none; }
+</style>
+</head>
+<body>
+  <span class="ribbon">STAGING · SPIKE</span>
+  <h1>Brillo Spike</h1>
+  <p class="sub" id="context">Loading…</p>
+  <main id="tests"></main>
+  <div class="card">
+    <h2>Send results</h2>
+    <p class="how">Copies a plain-text summary (no token, no script address). Paste it into the Claude chat.</p>
+    <div class="row"><button class="primary" id="copy">Copy results</button><button id="reset">Reset results</button></div>
+    <p class="detail" id="copy-detail"></p>
+  </div>
+  <div id="toast" role="status"></div>
+  <script src="spike.js"></script>
+</body>
+</html>

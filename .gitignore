@@ -6,6 +6,9 @@ local/
 HANDOFF.md
 # Design preview uses real trip details so it feels like theirs; local only.
 docs/style-preview.html
+# Session status and sheet-setup scripts reference real trip data; local only.
+STATUS.md
+private/
 *.xlsx
 *.csv
 exports/
