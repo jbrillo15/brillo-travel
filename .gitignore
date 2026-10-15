@@ -17,3 +17,6 @@ exports/
 .DS_Store
 *.icloud
 Icon?
+# "Icon?" above also matches icons/ on a case-insensitive Mac; keep the app icons.
+!icons/
+!icons/**

@@ -131,8 +131,45 @@ For each repo: **Settings → Pages** → Source **Deploy from a branch** → Br
 
 ### B5. Set up a phone
 
-*(Phase 1.)*
+**Do B6 first** if the script changed: a phone set up against an old script
+version gets no trip data.
+
+The setup code connects the installed app to one sheet. It must be pasted
+**inside the home-screen app**, because iOS keeps Safari's storage separate (EC-30).
+
+1. On the Mac, run this in the Terminal panel. It copies the code without showing it:
+   `python3 ~/Desktop/Claude/Projects/Personal/brillo-travel/tools/make_setup_code.py`
+   (add `prod` at the end for the real app).
+2. Paste it into a Messages thread with the phone's owner and send it right away.
+3. On the phone, open the app's link in Safari: staging `https://jbrillo15.github.io/brillo-travel-staging/`, prod `https://jbrillo15.github.io/brillo-travel/`.
+4. Tap Share → **Add to Home Screen** → **Add**.
+5. Open **Brillo** from the home screen.
+6. Pick the phone's owner in "Whose phone is this?".
+7. In Messages, long-press the code → **Copy**.
+8. Back in Brillo, tap the setup-code box → **Paste**. The box clears itself and Today appears.
+9. Delete the setup-code message.
 
 ### B6. Deploy to staging / prod
 
-*(Phase 1.)*
+**Front end:** the builder commits, checks the author is `jbrillo15` with the
+noreply email, asks Jordan, then pushes (staging repo first; prod only after an
+approved release). GitHub Pages publishes in about a minute. Phones show
+"Update available" and update only when someone taps it.
+
+**Script** (only when `server/Code.gs` or `js/parse.js` changed). The script is
+two files: `Code.gs` and `Parse.gs` (an exact copy of `js/parse.js`).
+
+0. **Real sheet only:** do B1 (named version + backup copy) first. The first snapshot writes IDs into rows that lack them.
+1. Open the sheet (STAGING or the real one) → **Extensions → Apps Script**.
+2. Click **Code.gs** in the file list, press Cmd+A, then Delete.
+3. In the Terminal panel run `pbcopy < ~/Desktop/Claude/Projects/Personal/brillo-travel/server/Code.gs`, click into the editor, press Cmd+V.
+4. If there's no **Parse.gs** yet: click **+** next to Files → **Script** → type `Parse` → Return.
+5. Click **Parse.gs**, press Cmd+A, then Delete.
+6. In the Terminal panel run `pbcopy < ~/Desktop/Claude/Projects/Personal/brillo-travel/js/parse.js`, click into the editor, press Cmd+V.
+7. Press Cmd+S.
+8. **Deploy → Manage deployments** → pencil → Version **New version** → Description `vX.Y.Z` → **Deploy** (B2: never "New deployment").
+
+9. If Google asks you to authorize again, choose your account → **Advanced → Go to (project name) (unsafe)** → **Allow**.
+10. Tell the builder "script deployed". The builder runs `python3 tools/live_check.py` (staging only), which prints ok, env, row counts and issues, never the token.
+
+The first snapshot after a deploy writes IDs into any rows that lack them (ID column only, empty cells only).

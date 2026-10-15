@@ -1,10 +1,10 @@
-"""Draw the Phase 0 spike icons (PNG, no dependencies).
+"""Draw the home-screen icons (PNG, no dependencies), per DESIGN.md §9:
+an ink-navy square with the trip as a three-station line (Osaka pink ->
+Kyoto matcha -> Tokyo lavender). The maskable icon shrinks the drawing into
+the central safe zone.
 
-Placeholder only: ink-navy square with the trip as a three-station line
-(Osaka pink -> Kyoto matcha -> Tokyo lavender), per DESIGN.md §9. The real
-icon set is exported in Phase 1 after design approval.
-
-    python3 spike/make_icons.py
+    python3 tools/make_icons.py            # app icons -> icons/
+    python3 tools/make_icons.py spike      # spike icons -> spike/
 """
 import pathlib
 import struct
@@ -25,7 +25,10 @@ def seg_dist(px, py, ax, ay, bx, by):
     return ((px - ax - t * dx) ** 2 + (py - ay - t * dy) ** 2) ** 0.5
 
 
-def color_at(x, y):
+def color_at(x, y, scale=1.0):
+    # Maskable: draw the same picture at `scale` around the center.
+    x = 0.5 + (x - 0.5) / scale
+    y = 0.5 + (y - 0.5) / scale
     for (sx, sy), col in STATIONS:
         d = ((x - sx) ** 2 + (y - sy) ** 2) ** 0.5
         if d <= R_INNER:
@@ -38,7 +41,7 @@ def color_at(x, y):
     return BG
 
 
-def render(size):
+def render(size, scale=1.0):
     rows = []
     for py in range(size):
         row = bytearray([0])
@@ -46,7 +49,7 @@ def render(size):
             acc = [0, 0, 0]
             for sy in range(SS):
                 for sx in range(SS):
-                    c = color_at((px + (sx + 0.5) / SS) / size, (py + (sy + 0.5) / SS) / size)
+                    c = color_at((px + (sx + 0.5) / SS) / size, (py + (sy + 0.5) / SS) / size, scale)
                     acc[0] += c[0]; acc[1] += c[1]; acc[2] += c[2]
             row += bytes(v // (SS * SS) for v in acc)
         rows.append(bytes(row))
@@ -59,7 +62,15 @@ def render(size):
             + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
 
 
-here = pathlib.Path(__file__).parent
-for size in (180, 192, 512):
-    (here / f"icon-{size}.png").write_bytes(render(size))
-    print(f"icon-{size}.png")
+import sys
+
+root = pathlib.Path(__file__).resolve().parent.parent
+if len(sys.argv) > 1 and sys.argv[1] == "spike":
+    out, jobs = root / "spike", [(180, 1.0, "icon-180.png"), (192, 1.0, "icon-192.png"), (512, 1.0, "icon-512.png")]
+else:
+    out = root / "icons"
+    jobs = [(180, 1.0, "icon-180.png"), (192, 1.0, "icon-192.png"), (512, 1.0, "icon-512.png"),
+            (512, 0.78, "icon-maskable-512.png")]
+for size, scale, name in jobs:
+    (out / name).write_bytes(render(size, scale))
+    print(out.name + "/" + name)

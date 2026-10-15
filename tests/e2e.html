@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brillo Travel — E2E (stubbed)</title>
+<style>
+  body { font: 14px/1.5 ui-monospace, Menlo, monospace; background: #0D1322; color: #EDF0F7; margin: 16px; }
+  .all-pass #results { color: #74D3B8; }
+  .has-failures #results { color: #FF8F8F; }
+  pre { white-space: pre-wrap; }
+  iframe { width: 375px; height: 812px; border: 1px solid #3B4868; background: #0D1322; }
+</style>
+</head>
+<body>
+<h1>Brillo Travel — E2E (stubbed API, fake data)</h1>
+<pre id="results">Running…</pre>
+<iframe id="app" title="App under test"></iframe>
+<script src="harness.js"></script>
+<script src="../js/config.js"></script>
+<script src="../js/parse.js"></script>
+<script src="../js/time.js"></script>
+<script src="../js/store.js"></script>
+<script src="fixtures/sheet.js"></script>
+<script src="e2e.js"></script>
+<script src="e2e.test.js"></script>
+<script>
+  // Service workers would serve stale files between local edits: clear them first.
+  E2E.clearWorkers().then(function () { return runTests(); });
+</script>
+</body>
+</html>

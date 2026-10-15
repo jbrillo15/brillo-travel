@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brillo Travel — server tests (stubbed)</title>
+<style>
+  body { font: 14px/1.5 ui-monospace, Menlo, monospace; background: #0D1322; color: #EDF0F7; margin: 16px; }
+  .all-pass #results { color: #74D3B8; }
+  .has-failures #results { color: #FF8F8F; }
+  pre { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>Brillo Travel — server tests (stubbed Apps Script)</h1>
+<pre id="results">Running…</pre>
+<script src="harness.js"></script>
+<script src="../js/config.js"></script>
+<script src="../js/parse.js"></script>
+<script src="../js/time.js"></script>
+<script src="fixtures/sheet.js"></script>
+<script src="server-stubs.js"></script>
+<script>
+  // Code.gs isn't served as JavaScript, so fetch it and evaluate it in global scope,
+  // the way Apps Script loads Code.gs and Parse.gs side by side.
+  fetch('../server/Code.gs').then(function (r) { return r.text(); }).then(function (src) {
+    (0, eval)(src);
+    var s = document.createElement('script');
+    s.src = 'server.test.js';
+    s.onload = function () { runTests(); };
+    document.body.appendChild(s);
+  });
+</script>
+</body>
+</html>

@@ -10,7 +10,7 @@ included.
 
 | Run | Phone | iOS | Mode | Date | Result |
 |---|---|---|---|---|---|
-| 1 | Jordan | 18.1.1 (22B91) | Home-screen app | Oct 14, 2026 | 16 of 18 marked pass. L1 failed (cause unknown), L4 inconclusive, L10 needs a retest (spike bug, see below) |
+| 1 | Jordan | 18.1.1 (22B91) | Home-screen app | Oct 14, 2026 | 16 of 18 marked pass. L1 worked ("no routes" was the test's US origin), L4 inconclusive (app not installed), L10 needs a retest (spike bug, see below) |
 | 2 | Jordan | 18.1.1 | Home-screen app | after spike-2 is pushed | **Not run yet:** retest L1, L4 and L10 |
 | 3 | Jordan | 26.x | Home-screen app | after the iOS update (O-2) | **Not run yet** (EC-40) |
 | 4 | Lindsay | 26.6.2 | Home-screen app | when she's back | **Not run yet** |
@@ -31,10 +31,10 @@ on the phone only, because the token never goes into the browser pane.
 | S3 | Offline service worker | Pass (marked by Jordan) | Shell cached, page controlled by the service worker; Jordan marked it after opening in airplane mode | As specified |
 | S4 | Paste setup code inside the installed app | Pass | Saved; the box clears so the code never stays on screen | As specified (EC-30). Keep the self-clearing box |
 | S5 | POST to Apps Script from Pages | Pass | Correct token: `ok`, `env=staging`, 1.8 s. Japanese and emoji intact. Wrong token: `AUTH`, 1.1 s | As specified. Text/plain POST with redirect follow works |
-| L1 | Maps transit directions (`/maps/dir/?api=1…&travelmode=transit`) | **Fail** | Returned without a reload. What it showed isn't recorded | Pending Jordan's description, then retest |
+| L1 | Maps transit directions (`/maps/dir/?api=1…&travelmode=transit`) | Marked fail; **link works** | Google Maps opened and said "No routes found" (Jordan). The route ran from his location in the US to Kyoto, which has no transit route. Returned without a reload | As specified. Retest with `origin=京都駅` to confirm Japanese transit routing |
 | L2 | Maps search (`/maps/search/?api=1`) | Pass | Returned without a reload | As specified |
 | L3 | Maps place link | Pass | Returned without a reload | As specified |
-| L4 | Translate app scheme `googletranslate://` | **Inconclusive** | Marked "Didn't"; no app switch was recorded. Unknown whether the Translate app is installed | Retest with the app installed (the offline pack needs the app, D9). Until then the website link is the fallback |
+| L4 | Translate app scheme `googletranslate://` | **Inconclusive** | Marked "Didn't"; no app switch was recorded. The Translate app wasn't installed (Jordan) | Retest with the app installed (the offline pack needs the app, D9). Until then the website link is the fallback |
 | L5 | Translate website | Pass | Returned without a reload | Fallback |
 | L6 | GO website `go.goinc.jp` | Pass | Opened; whether it hands off to the GO app is unknown (app presence not recorded) | Use it, with the App Store page as fallback |
 | L7 | GO App Store page (`id1254341709`) | Pass | Returned without a reload | Fallback |
@@ -47,7 +47,7 @@ on the phone only, because the token never goes into the browser pane.
 
 ## Open follow-ups
 
-1. **L1:** find out what the transit-directions link did (wrong app, web page, no transit mode, or nothing), then choose a fix: drop `travelmode`, use `comgooglemaps://` if the Maps app is installed, or fall back to the search link.
-2. **L4 and L10:** retest on spike-2. For L4, note whether Google Translate is installed.
+1. **L1:** confirm a Kyoto Station → Kiyomizu-dera transit route shows (link with an explicit origin).
+2. **L4 and L10:** retest on spike-2, with Google Translate installed for L4.
 3. **Repeat on iOS 26** (Jordan, after O-2) and on **Lindsay's phone**, noting the Auto-Lock setting for S9.
 4. **GO and Tokyo Disney Resort app hand-off:** retest L6 and L8 with both apps installed, **before the Nov 11 freeze** (Appendix A currently schedules the installs for Nov 13).
