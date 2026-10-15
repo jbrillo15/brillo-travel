@@ -167,6 +167,7 @@
     var ready = switching ? (S.db.close(), openDb(setup.env)) : Promise.resolve();
     ready.then(function () { return S.db.put('prefs', 'setup', setup); }).then(function () {
       S.setup = setup;
+      S.status = { state: 'idle', lastSyncAt: null, issues: { errors: 0, warnings: 0 } };   // drop the stale "setup needed" banner
       BT.store.requestPersistence();
       if (/^#?\/?(today)?$/.test(location.hash)) render(); else location.hash = '#/today';   // hashchange renders
       S.sync.pull('setup');

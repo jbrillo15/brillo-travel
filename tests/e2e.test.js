@@ -17,6 +17,20 @@ suite('e2e', function () {
     });
   });
 
+  test('a valid setup code saves, clears the box and drops the "setup needed" banner', function () {
+    return E2E.seed({ setup: false, snapshot: null }).then(function () { return E2E.load(); }).then(function (w) {
+      var code = btoa(JSON.stringify({ env: 'staging', apiUrl: 'https://script.google.com/macros/s/AKfakeE2E/exec', token: 'e'.repeat(40) }));
+      var ta = w.document.querySelector('textarea[data-action="paste-setup"]');
+      ta.value = code;
+      ta.dispatchEvent(new w.Event('input', { bubbles: true }));
+      return new Promise(function (r) { setTimeout(r, 400); }).then(function () {
+        ok(!/Welcome to Brillo/.test(E2E.text(w)), 'left the setup screen');
+        ok(!/Setup code needed/.test(E2E.text(w)), 'no stale banner');
+        ok(!/eeeeeeeeee/.test(w.document.documentElement.outerHTML), 'token never in the page');
+      });
+    });
+  });
+
   test('AC-T2 / AC-T4: in trip, offline, Nov 20 13:30 JST: Day 2, NOW = midday item, tonight\'s hotel', function () {
     return E2E.seed({ jst: '2026-11-20T13:30', owner: 'Lindsay' }).then(function () { return E2E.load(); }).then(function (w) {
       ok(E2E.renderMs < 1000, 'rendered from storage in ' + Math.round(E2E.renderMs) + ' ms');
