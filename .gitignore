@@ -8,6 +8,7 @@ HANDOFF.md
 docs/style-preview.html
 # Session status and sheet-setup scripts reference real trip data; local only.
 STATUS.md
+NEXT-AGENT.md
 private/
 *.xlsx
 *.csv
