@@ -1,7 +1,7 @@
 /* Phase 0 spike service worker. Cache-first for the spike shell only.
    Never touches API calls (they're cross-origin POSTs). A new version waits;
    no skipWaiting (HANDOFF §7). */
-var CACHE = 'brillo-spike-1';
+var CACHE = 'brillo-spike-2';
 var SHELL = ['./', './index.html', './spike.js', './manifest.webmanifest',
   './icon-180.png', './icon-192.png', './icon-512.png'];
 

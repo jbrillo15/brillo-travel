@@ -5,7 +5,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'spike-1';
+  var VERSION = 'spike-2';
   var DB_NAME = 'brillo-spike';
   var SESSION = Math.random().toString(36).slice(2, 10);
   var LOADED_AT = new Date();
@@ -296,12 +296,26 @@
         el('a', { 'class': 'btn', href: l.url, text: 'Open', on: { click: function () {
           put('pendingLink', { id: l.id, session: SESSION, at: Date.now() }).catch(function () {});
         } } }),
-        el('button', { 'class': 'pass', text: 'Worked', on: { click: function () { record(l.id, 'pass'); } } }),
-        el('button', { 'class': 'fail', text: 'Didn\'t', on: { click: function () { record(l.id, 'fail'); } } })
+        el('button', { 'class': 'pass', text: 'Worked', on: { click: function () { markLink(l.id, 'pass'); } } }),
+        el('button', { 'class': 'fail', text: 'Didn\'t', on: { click: function () { markLink(l.id, 'fail'); } } })
       ]),
       el('p', { 'class': 'detail', id: 'dt-' + l.id })
     ]);
   }
+  // Marking a link settles its pending note, so a later relaunch can't be
+  // mistaken for a reload caused by this link (spike-1 bug: a tel: prompt
+  // never hides the page, so the note lingered until the force-quit test).
+  function markLink(id, status) {
+    return get('pendingLink').then(function (p) {
+      if (!p || p.id !== id) return record(id, status);
+      return del('pendingLink').then(function () {
+        return record(id, status, p.session === SESSION
+          ? 'The page never went to the background (nothing opened over it, or only a system prompt).'
+          : undefined);
+      });
+    }).catch(function () { return record(id, status); });
+  }
+
   // On return (or a reload) note whether the page kept its state (EC-34).
   function checkReturn() {
     return get('pendingLink').then(function (p) {
