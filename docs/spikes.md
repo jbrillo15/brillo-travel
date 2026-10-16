@@ -11,8 +11,8 @@ included.
 | Run | Phone | iOS | Mode | Date | Result |
 |---|---|---|---|---|---|
 | 1 | Jordan | 18.1.1 (22B91) | Home-screen app | Oct 14, 2026 | 16 of 18 marked pass. L1 worked ("no routes" was the test's US origin), L4 inconclusive (app not installed), L10 needs a retest (spike bug, see below) |
-| 2 | Jordan | 18.1.1 | Home-screen app | after spike-2 is pushed | **Not run yet:** retest L1, L4 and L10 |
-| 3 | Jordan | 26.x | Home-screen app | after the iOS update (O-2) | **Not run yet** (EC-40) |
+| 2 | Jordan | 18.1.1 | Home-screen app | Oct 15, 2026 | L4 pass with Google Translate installed (the app opened; run on spike-1, link unchanged). **L10 pass on spike-2: the `tel:` prompt never sent the page to the background, so no reload.** The spike-2 worker stayed waiting through two force-quits; a delete + re-add of the home-screen icon was needed. **L1 pass:** the Kyoto Station → Kiyomizu-dera link (explicit origin) showed a train route in Google Maps |
+| 3 | Jordan | 26.x | Home-screen app | — | **Dropped** (Oct 15: Jordan stays on 18.1.1; Lindsay's phone covers iOS 26) |
 | 4 | Lindsay | 26.6.2 | Home-screen app | when she's back | **Not run yet** |
 
 Local check before the phone run (browser pane, `http://localhost:8787`, Oct 14):
@@ -47,7 +47,7 @@ on the phone only, because the token never goes into the browser pane.
 
 ## Open follow-ups
 
-1. **L1:** confirm a Kyoto Station → Kiyomizu-dera transit route shows (link with an explicit origin).
-2. **L4 and L10:** retest on spike-2, with Google Translate installed for L4.
-3. **Repeat on iOS 26** (Jordan, after O-2) and on **Lindsay's phone**, noting the Auto-Lock setting for S9.
-4. **GO and Tokyo Disney Resort app hand-off:** retest L6 and L8 with both apps installed, **before the Nov 11 freeze** (Appendix A currently schedules the installs for Nov 13).
+1. ~~**L1:** confirm a Kyoto Station → Kiyomizu-dera transit route shows~~ Done Oct 15: it shows. The app's link (origin = current location) is as specified.
+2. ~~**L4 and L10:** retest on spike-2~~ Done Oct 15: both pass. EC-34 (`tel:` reload) is not needed; Phase 0 edit 4 is dropped.
+3. **Repeat on Lindsay's phone (iOS 26.6.2)**, noting the Auto-Lock setting for S9. Jordan stays on iOS 18.1.1 (Oct 15), so there's no Jordan iOS 26 run.
+4. **GO and Tokyo Disney Resort app hand-off:** retest L6 and L8 with both apps installed, **before the Nov 11 freeze** (Appendix A now schedules the installs for Nov 1).
