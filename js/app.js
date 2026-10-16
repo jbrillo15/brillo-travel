@@ -295,7 +295,14 @@
     document.addEventListener('change', onChange);
     overlay.addEventListener('click', function (e) { if (e.target === overlay) { S.sheet = null; renderSheet(); } });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && S.sheet) { S.sheet = null; renderSheet(); } });
-    window.addEventListener('hashchange', function () { S.sheet = null; render(); window.scrollTo(0, 0); });
+    var enterTimer = null;
+    window.addEventListener('hashchange', function () {
+      S.sheet = null;
+      root.setAttribute('data-enter', '');      // screen entrance plays on route changes only (DESIGN §8)
+      render(); window.scrollTo(0, 0);
+      clearTimeout(enterTimer);
+      enterTimer = setTimeout(function () { root.removeAttribute('data-enter'); }, 400);
+    });
 
     openDb(BT.store.activeEnv()).catch(function (e) {
       S.storageError = e; S.env = BT.store.activeEnv();

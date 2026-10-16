@@ -4,6 +4,15 @@ Versions follow semantic versioning. 0.x during the build; 1.0.0 is the trip
 release. The version here must match `js/config.js` and the service worker
 cache name (a unit test checks this).
 
+## 0.1.3 (staging)
+
+- New look, design 0.5 "Metro", based on Tokyo and Osaka Metro signs: a neutral charcoal shell, city colors from real rail lines (Osaka Sennichimae pink, Kyoto Karasuma green, Tokyo Hanzomon purple, Shinkansen blue for travel days), flat panels with hairlines and a faint city light at the top.
+- Station marks: each day's badge is a white disc ringed in the line color, with the city's initial over the day number (K 03). Trip shows each city's name in Japanese too.
+- The day is drawn as a metro map: a thick line with white stations, gold for Now. Now / Next is a flat panel with a gold top band.
+- Solid pictograms on line-color tiles, in the style of Japanese public signs; all 29 redrawn.
+- Type is Avenir Next, built into iPhone. No web font downloads.
+- The screen entrance animation is new; nothing animates continuously.
+
 ## 0.1.2 (staging)
 
 - If the sheet's script speaks a different API version than the app, Brillo keeps showing the saved plan, says which side needs updating ("App and sheet don't match"), and stops retrying until the next normal sync (HANDOFF §13). Settings shows the script's version next to the app's.

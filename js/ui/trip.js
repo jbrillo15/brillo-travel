@@ -20,7 +20,7 @@
         return html`<li class="${M.cityClass(city)}${d === today ? ' is-today' : ''}"><a class="day-row" href="#/day/${d}">
           ${D.dayBadge(city, n && n.n)}
           <span class="day-main"><span class="day-date">${T.fmtDay(d)}${d === today ? html` <span class="chip">Today</span>` : ''}</span>
-            <span class="day-city">${city}</span>
+            <span class="day-city">${city}${M.cityJa(city) ? html`<span class="ja-city" lang="ja">${M.cityJa(city)}</span>` : ''}</span>
             <span class="secondary">${items.length ? items[0].title + (items.length > 1 ? ' + ' + (items.length - 1) + ' more' : '') : 'Nothing planned yet'}</span>
             ${hotel ? html`<span class="secondary">${D.icon('p-bed', 'inline-pict')}${hotel.nameEn}</span>` : ''}
           </span><span class="chev" aria-hidden="true">›</span></a></li>`;

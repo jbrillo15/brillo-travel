@@ -27,10 +27,10 @@ PAIRS = [
     ("text-2", "surface-2", 4.5, "Chips, banner detail"),
     ("text-3", "bg", 4.5, "Eyebrows, inactive tabs"),
     ("text-3", "surface-1", 4.5, "Eyebrows on cards"),
-    ("osaka", "bg", 4.5, "Osaka day line and badge"),
-    ("kyoto", "bg", 4.5, "Kyoto day line and badge"),
-    ("tokyo", "bg", 4.5, "Tokyo day line and badge"),
-    ("travel", "bg", 4.5, "Travel day line and badge"),
+    ("osaka", "bg", 4.5, "Osaka city name and marks on the shell"),
+    ("kyoto", "bg", 4.5, "Kyoto city name and marks on the shell"),
+    ("tokyo", "bg", 4.5, "Tokyo city name and marks on the shell"),
+    ("travel", "bg", 4.5, "Travel city name and marks on the shell"),
     ("osaka", "surface-1", 4.5, "Osaka label on a card"),
     ("kyoto", "surface-1", 4.5, "Kyoto label on a card"),
     ("tokyo", "surface-1", 4.5, "Tokyo label on a card"),
@@ -66,6 +66,39 @@ PAIRS = [
     ("tokyo", "surface-2", 3.0, "Tokyo pictogram in its tile"),
     ("travel", "surface-2", 3.0, "Travel pictogram in its tile"),
     ("text", "surface-2", 3.0, "Neutral pictogram in its tile"),
+]
+
+# v0.5 Metro: flat panels. The only tints behind text are the city top light
+# (--glow-peak, 14%, behind the header) and tonight's hotel corner light (9%,
+# bottom-right, away from the text-3 eyebrow). Derived surfaces are computed first.
+DERIVED = {
+    "neutral-top": "mix:text:5:bg",               # top light with no city
+}
+GLOW_PEAK = int(re.search(r"--glow-peak:\s*(\d+)%", CSS.read_text(encoding="utf-8")).group(1))
+CITIES = ["osaka", "kyoto", "tokyo", "travel"]
+for c in CITIES:
+    DERIVED[f"{c}-top"] = f"mix:{c}:{GLOW_PEAK}:bg"  # header top light (--glow-peak, read from app.css)
+    DERIVED[f"{c}-hotel"] = f"mix:{c}:9:surface-1"   # tonight's hotel corner light
+    PAIRS += [
+        ("text", f"{c}-top", 4.5, f"Greeting / title under the {c} top light"),
+        ("text-2", f"{c}-top", 4.5, f"Day line and back link under the {c} top light"),
+        ("text-3", f"{c}-top", 4.5, f"Eyebrows under the {c} top light"),
+        ("text", f"{c}-hotel", 4.5, f"Hotel name on the {c} hotel light"),
+        ("text-2", f"{c}-hotel", 4.5, f"Hotel details on the {c} hotel light"),
+        ("on-fill", c, 3.0, f"Pictogram on the {c} tile"),
+        (c, "mark", 3.0, f"{c} ring on the white station disc"),
+    ]
+PAIRS += [
+    ("text", "neutral-top", 4.5, "Title under the neutral top light"),
+    ("text-2", "neutral-top", 4.5, "Secondary text under the neutral top light"),
+    ("on-fill", "mark", 4.5, "Letter and day number on the station disc"),
+    ("text-3", "neutral-top", 4.5, "Eyebrows under the neutral top light"),
+    ("text", "mix:text:9:surface-1", 4.5, "Hotel name on the neutral hotel light"),
+    ("text-2", "mix:text:9:surface-1", 4.5, "Hotel details on the neutral hotel light"),
+    ("ring-neutral", "bg", 3.0, "Neutral station ring (no city) on the shell"),
+    ("ring-neutral", "mark", 3.0, "Neutral station ring on the white disc"),
+    ("text-2", "surface-3", 3.0, "Pictogram on a done (neutral) tile"),
+    ("text-3", "surface-1", 3.0, "Today's day-row outline"),
 ]
 
 # Colors that each carry one meaning must not be confused for each other.
@@ -117,9 +150,11 @@ def mix(t, spec):
 
 def main():
     t = load_tokens()
+    for name, spec in DERIVED.items():
+        t[name] = mix(t, spec)
     for fg, bg, _, _ in PAIRS:
         for name in (fg, bg):
-            if name.startswith("mix:"):
+            if name.startswith("mix:") and name not in t:
                 t[name] = mix(t, name)
     failed = 0
     print("| Foreground | Background | Ratio | Needs | Result | Used for |")

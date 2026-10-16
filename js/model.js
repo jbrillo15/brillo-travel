@@ -5,7 +5,8 @@
   var BT = window.BT = window.BT || {};
   var T = BT.time;
 
-  var CITY_CODES = { Osaka: 'OSA', Kyoto: 'KYO', Tokyo: 'TYO' };
+  // Known cities: station-mark letter (city initial, DESIGN §6) and name in Japanese.
+  var CITIES = { Osaka: { code: 'O', ja: '大阪' }, Kyoto: { code: 'K', ja: '京都' }, Tokyo: { code: 'T', ja: '東京' } };
   var KIND_PICT = { Food: 'p-food', Temple: 'p-temple', Shrine: 'p-shrine', Sight: 'p-camera', Nature: 'p-tree',
     Shopping: 'p-bag', Activity: 'p-ticket', Transit: 'p-train', Hotel: 'p-bed', Other: 'p-other' };
 
@@ -63,8 +64,9 @@
     return out ? out.city : 'Travel';
   }
   function cityClass(city) { return 'city-' + String(city || 'travel').toLowerCase().replace(/[^a-z]/g, ''); }
-  function knownCityClass(city) { return CITY_CODES[city] ? cityClass(city) : 'city-travel'; }
-  function cityCode(city) { return CITY_CODES[city] || null; }
+  function knownCityClass(city) { return CITIES[city] ? cityClass(city) : 'city-travel'; }
+  function cityCode(city) { return CITIES[city] ? CITIES[city].code : null; }
+  function cityJa(city) { return CITIES[city] ? CITIES[city].ja : null; }
 
   // Legs that depart or arrive on this calendar date in their own zones.
   function legsOn(vm, day) {
@@ -104,7 +106,7 @@
   BT.model = {
     build: build, settingsWithDefaults: settingsWithDefaults,
     tonightHotel: tonightHotel, checkoutHotel: checkoutHotel, cityFor: cityFor,
-    cityClass: knownCityClass, cityCode: cityCode, legsOn: legsOn, tripDays: tripDays,
+    cityClass: knownCityClass, cityCode: cityCode, cityJa: cityJa, legsOn: legsOn, tripDays: tripDays,
     pict: pict, legPict: legPict, allergyCard: allergyCard, groupRef: groupRef, semverLess: semverLess
   };
 })();
