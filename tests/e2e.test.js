@@ -42,6 +42,8 @@ suite('e2e', function () {
       has(w, /STAGING/);
       ok(/offline|Not synced|Couldn't sync|Syncing/i.test(w.document.querySelector('[data-sync]').textContent), 'sync pill shows an offline state');
       ok(w.document.querySelector('.app').classList.contains('city-osaka'), 'city color');
+      ok(w.document.querySelector('.topbar > .greeting + .dayline'), 'day line sits under the greeting (0.1.4)');
+      eq(w.document.querySelector('.topbar .day-badge b').textContent, 'O');
       E2E.screenChecks(w);
     });
   });
@@ -113,6 +115,7 @@ suite('e2e', function () {
       has(w, /34\s+days to go/);
       has(w, /Fake task/);
       has(w, /Still to book/);
+      eq(w.document.querySelector('.topbar .day-badge').getAttribute('aria-label'), 'Trip starts ' + w.BT.time.fmtDay('2026-11-18'));
       E2E.screenChecks(w);
     });
   });
