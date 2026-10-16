@@ -32,9 +32,11 @@
       ? html`<button class="allergy-badge high" type="button" data-action="cards">Allergy · high risk</button>`
       : html`<button class="allergy-badge caution" type="button" data-action="cards">Allergy · ask first</button>`;
   }
-  function dayBadge(city, n) {
-    var code = BT.model.cityCode(city);
-    if (!code || !(n > 0)) return html`<span class="day-badge" role="img" aria-label="Travel day"><span class="glyph" aria-hidden="true">✈</span></span>`;
+  // Station mark. label overrides the plane's accessible name (before and after the trip).
+  // A city the app doesn't know gets its initial in a neutral ring (city-other).
+  function dayBadge(city, n, label) {
+    var code = BT.model.cityCode(city) || (city && city !== 'Travel' ? String(city).charAt(0).toUpperCase() : null);
+    if (!code || !(n > 0)) return html`<span class="day-badge" role="img" aria-label="${label || 'Travel day'}"><span class="glyph" aria-hidden="true">✈</span></span>`;
     var nn = (n < 10 ? '0' : '') + n;
     return html`<span class="day-badge" role="img" aria-label="${'Day ' + n + ', ' + city}"><span aria-hidden="true"><b>${code}</b>${nn}</span></span>`;
   }

@@ -76,6 +76,11 @@ suite('model', function () {
     ok(!M.semverLess('0.10.0', '0.9.9'));
     ok(!M.semverLess('0.1.0', '0.1.0'));
   });
+  test('city classes and station letters: known, travel, other (DESIGN 0.5)', function () {
+    eq(M.cityClass('Kyoto'), 'city-kyoto'); eq(M.cityCode('Kyoto'), 'K'); eq(M.cityJa('Tokyo'), '東京');
+    eq(M.cityClass('Travel'), 'city-travel'); eq(M.cityClass(''), 'city-travel');
+    eq(M.cityClass('Nara'), 'city-other'); eq(M.cityCode('Nara'), null); eq(M.cityJa('Nara'), null);
+  });
   test('empty snapshot builds without crashing (first run)', function () {
     var v = M.build(null);
     eq(v.hasData, false);

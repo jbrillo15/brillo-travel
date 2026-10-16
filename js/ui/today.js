@@ -11,7 +11,8 @@
   }
 
   function header(badge, line, greet) {
-    return html`<header class="topbar">${badge}<div class="who"><div class="dayline">${line}</div></div><div class="top-actions"><a class="btn btn-icon" href="#/info" aria-label="Info and settings">${D.icon('i-info')}</a>${D.cardsButton()}</div><div class="greeting">${greet}</div></header>`;
+    // Row 1: station mark and actions. Then the greeting and the day line, each full width (DESIGN §6).
+    return html`<header class="topbar">${badge}<span></span><div class="top-actions"><a class="btn btn-icon" href="#/info" aria-label="Info and settings">${D.icon('i-info')}</a>${D.cardsButton()}</div><div class="greeting">${greet}</div><div class="dayline">${line}</div></header>`;
   }
 
   function nowNextCard(nn) {
@@ -48,7 +49,7 @@
     var hour = T.partsIn(now, s.homeTz).hh;
     return {
       city: null,
-      header: header(D.dayBadge('Travel', 0), s.tripName, greeting(S.owner, hour)),
+      header: header(D.dayBadge('Travel', 0, s.tripStart ? 'Trip starts ' + T.fmtDay(s.tripStart) : 'Trip not started'), s.tripName, greeting(S.owner, hour)),
       body: html`
         <div class="countdown">
           <div class="display num">${days === null ? '—' : days}</div>
@@ -116,7 +117,7 @@
     var done = vm.itinerary.filter(function (x) { return x.done; }).length;
     return {
       city: null,
-      header: header(D.dayBadge('Travel', 0), s.tripName, 'Welcome home' + (S.owner ? ', ' + S.owner : '')),
+      header: header(D.dayBadge('Travel', 0, 'Trip complete'), s.tripName, 'Welcome home' + (S.owner ? ', ' + S.owner : '')),
       body: html`<section class="summary">
         <h2>Trip summary</h2>
         <ul class="plain-list">

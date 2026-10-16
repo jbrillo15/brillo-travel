@@ -97,6 +97,10 @@ PAIRS += [
     ("text-2", "mix:text:9:surface-1", 4.5, "Hotel details on the neutral hotel light"),
     ("ring-neutral", "bg", 3.0, "Neutral station ring (no city) on the shell"),
     ("ring-neutral", "mark", 3.0, "Neutral station ring on the white disc"),
+    ("on-fill", "ring-neutral", 3.0, "Pictogram on the neutral tile (a city with no line color)"),
+    ("text", "mix:ring-neutral:14:bg", 4.5, "Title under the neutral-city top light"),
+    ("text-2", "mix:ring-neutral:14:bg", 4.5, "Day line under the neutral-city top light"),
+    ("text-3", "mix:ring-neutral:14:bg", 4.5, "Eyebrows under the neutral-city top light"),
     ("text-2", "surface-3", 3.0, "Pictogram on a done (neutral) tile"),
     ("text-3", "surface-1", 3.0, "Today's day-row outline"),
 ]

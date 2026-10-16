@@ -4,6 +4,14 @@ Versions follow semantic versioning. 0.x during the build; 1.0.0 is the trip
 release. The version here must match `js/config.js` and the service worker
 cache name (a unit test checks this).
 
+## 0.1.4 (staging)
+
+- Today: the day line ("Day 2 of 8 · Osaka") moves under the greeting on one full line, so it no longer wraps beside the station mark.
+- A day in a city without a line color (say a Nara day trip) gets its initial in a gray ring instead of the blue travel-day badge, so blue means travel days only.
+- Before and after the trip, the header mark is announced as "Trip starts Nov 18" or "Trip complete" instead of "Travel day".
+- The station letter is lighter than the day number, so Osaka's "O" never reads as a zero.
+- The yen pictogram shows a ¥.
+
 ## 0.1.3 (staging)
 
 - New look, design 0.5 "Metro", based on Tokyo and Osaka Metro signs: a neutral charcoal shell, city colors from real rail lines (Osaka Sennichimae pink, Kyoto Karasuma green, Tokyo Hanzomon purple, Shinkansen blue for travel days), flat panels with hairlines and a faint city light at the top.

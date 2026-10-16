@@ -64,7 +64,8 @@
     return out ? out.city : 'Travel';
   }
   function cityClass(city) { return 'city-' + String(city || 'travel').toLowerCase().replace(/[^a-z]/g, ''); }
-  function knownCityClass(city) { return CITIES[city] ? cityClass(city) : 'city-travel'; }
+  // Known cities get their line color; Travel (or blank) is blue; any other city is neutral.
+  function knownCityClass(city) { return CITIES[city] ? cityClass(city) : !city || city === 'Travel' ? 'city-travel' : 'city-other'; }
   function cityCode(city) { return CITIES[city] ? CITIES[city].code : null; }
   function cityJa(city) { return CITIES[city] ? CITIES[city].ja : null; }
 
