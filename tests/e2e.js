@@ -55,7 +55,10 @@
       frame.onload = function () {
         var w = frame.contentWindow;
         // Stub the network before the first sync can reach it.
-        if (w.BT && w.BT.api) w.BT.api.fetch = function () { return Promise.reject(new TypeError('offline (stub)')); };
+        // A test may set E2E.fetchStub to answer instead; it's cleared after each load.
+        var stub = E2E.fetchStub || function () { return Promise.reject(new TypeError('offline (stub)')); };
+        E2E.fetchStub = null;
+        if (w.BT && w.BT.api) w.BT.api.fetch = stub;
         var tries = 0;
         (function wait() {
           var main = w.document.getElementById('main');

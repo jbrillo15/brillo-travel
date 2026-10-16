@@ -156,6 +156,35 @@ suite('time', function () {
     eq(T.tripDate(at), '2026-11-20');
   });
 
+  test('EC-04: sweeping LA → landing → trip end in 15-min steps, every trip day appears once, in order', function () {
+    var t = pt('2026-11-17', '00:00').getTime(), end = jst('2026-11-27', '12:00').getTime();
+    var seen = [], last = null;
+    for (; t <= end; t += 15 * 60000) {
+      var d = T.tripDate(new Date(t));
+      if (d === last) continue;
+      if (last) eq(T.daysBetween(last, d), 1, 'no skipped or repeated day after ' + last);
+      seen.push(d); last = d;
+    }
+    ['2026-11-18', '2026-11-19', '2026-11-20', '2026-11-21', '2026-11-22', '2026-11-23', '2026-11-24', '2026-11-25', '2026-11-26']
+      .forEach(function (d) { ok(seen.indexOf(d) >= 0, d + ' appears'); });
+  });
+
+  test('EC-04: no app file reads the phone\'s own zone (local Date getters)', function () {
+    var bad = /\.(getHours|getMinutes|getDate|getDay|getMonth|getFullYear|getTimezoneOffset)\(|toLocale(Date|Time)String\((?![^)]*timeZone)|new Date\(\s*\d+\s*,|new Date\(\s*'\d{4}-\d{2}-\d{2}T[^'Z+]*'\s*\)/;   // number toLocaleString is fine; local-time constructors aren't
+    return fetch('../index.html', { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (htmlText) {
+      var srcs = [];
+      htmlText.replace(/<script[^>]+src="([^"]+\.js)"/g, function (m, s) { srcs.push(s); });
+      ok(srcs.length >= 10, 'found the app scripts: ' + srcs.length);
+      return Promise.all(srcs.map(function (s) {
+        return fetch('../' + s, { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (src) {
+          src.split('\n').forEach(function (line, i) {
+            if (bad.test(line.replace(/\/\/.*$/, ''))) throw new Error(s + ':' + (i + 1) + ' reads the phone zone: ' + line.trim().slice(0, 80));
+          });
+        });
+      }));
+    });
+  });
+
   test('formatting', function () {
     eq(T.fmtDay('2026-11-21'), 'Sat Nov 21');
     eq(T.fmtDay('not a date'), '');

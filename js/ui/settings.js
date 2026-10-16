@@ -56,6 +56,9 @@
     };
   }
 
+  // The script's own answer beats the saved copy, which is stale during a mismatch.
+  function scriptVersion(S) { return S.status.serverVersion || (S.snapshot && S.snapshot.serverVersion) || null; }
+
   function settings(S) {
     var st = BT.sync.describe(S.status, T.now());
     var issues = S.vm.issues || [];
@@ -74,7 +77,7 @@
           <a class="info-row" href="#/health"><span>Data health</span><b>${issues.length ? issues.length + ' to check' : 'All clear'}</b></a>
         </section>
         <section class="settings-group">
-          <div class="row-between"><span>Version <b class="num">${BT.config.version}</b> · ${S.env}</span>
+          <div class="row-between"><span>Version <b class="num">${BT.config.version}</b> · ${S.env}${scriptVersion(S) ? html` · script <b class="num">${scriptVersion(S)}</b>` : ''}</span>
             <button class="btn" type="button" data-action="check-update">Check for update</button></div>
           ${S.updateNote ? html`<p class="secondary">${S.updateNote}</p>` : ''}
         </section>

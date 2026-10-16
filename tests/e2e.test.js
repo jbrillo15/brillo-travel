@@ -54,6 +54,26 @@ suite('e2e', function () {
     });
   });
 
+  test('EC-04: reopening the next morning re-derives Today (no stale day); 00:00–02:00 stays on the old day (EC-05)', function () {
+    return E2E.seed({ jst: '2026-11-20T23:50' }).then(function () { return E2E.load(); }).then(function (w) {
+      has(w, /Day 2 of 8 · Osaka/);
+      Object.defineProperty(w.document, 'visibilityState', { value: 'visible', configurable: true });
+      function returnAt(time) {
+        var at = w.BT.time.zonedToInstant('2026-11-21', time, 'Asia/Tokyo').getTime();
+        w.BT.time.setNow(function () { return at; });     // the phone's clock (and maybe its zone) moved on
+        w.document.dispatchEvent(new w.Event('visibilitychange'));
+        return new Promise(function (r) { setTimeout(r, 80); });
+      }
+      return returnAt('00:10').then(function () {
+        has(w, /Day 2 of 8 · Osaka/, 'just after midnight is still the old trip day');
+        return returnAt('07:30');
+      }).then(function () {
+        has(w, /Day 3 of 8 · Kyoto/);
+        ok(!/Day 2 of 8/.test(E2E.text(w)), 'the old day is gone');
+      });
+    });
+  });
+
   test('after 6 PM: Route home appears with the last-train note', function () {
     return E2E.seed({ jst: '2026-11-21T19:15' }).then(function () { return E2E.load(); }).then(function (w) {
       has(w, /Route home/);
@@ -206,6 +226,33 @@ suite('e2e', function () {
       has(w, /Total and cancellation date not in the sheet yet/);
       ok(!/NaN|undefined|null/.test(E2E.text(w)), 'no NaN/undefined/null on Info');
       return E2E.go(w, '#/today').then(function () { ok(!/NaN|undefined|null/.test(E2E.text(w)), 'none on Today'); });
+    });
+  });
+
+  test('§13: a newer script API shows "App and sheet don\'t match", keeps the plan, and Settings shows the script version', function () {
+    var newer = E2E.snapshot();
+    newer.ok = true; newer.api = 99;
+    E2E.fetchStub = function () {
+      return Promise.resolve({ status: 200, text: function () { return Promise.resolve(JSON.stringify(newer)); } });
+    };
+    return E2E.seed({ jst: '2026-11-20T13:30' }).then(function () { return E2E.load('#/settings'); }).then(function (w) {
+      has(w, /script 0\.1\.0/, 'script version from the saved snapshot');
+      return E2E.click(w, '[data-action="sync-now"]').then(function () {
+        return new Promise(function (r) { setTimeout(r, 300); });
+      }).then(function () {
+        has(w, /App and sheet don't match/);
+        has(w, /newer than this app/);
+        eq(w.document.querySelector('[data-sync]').textContent, 'Version mismatch');
+        E2E.screenChecks(w);
+        return E2E.go(w, '#/today');
+      }).then(function () {
+        has(w, /Day 2 of 8 · Osaka/, 'saved plan still shows');
+        has(w, /App and sheet don't match/, 'banner stays across screens');
+        w.BT.api.fetch = function () { return Promise.reject(new TypeError('offline (stub)')); };
+        return w.BT.app.state.sync.pull('manual').then(function () { return new Promise(function (r) { setTimeout(r, 80); }); });
+      }).then(function () {
+        has(w, /App and sheet don't match/, 'going offline doesn\'t clear the mismatch');
+      });
     });
   });
 

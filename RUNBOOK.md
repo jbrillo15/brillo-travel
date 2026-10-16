@@ -127,7 +127,29 @@ For each repo: **Settings → Pages** → Source **Deploy from a branch** → Br
 
 ### B4. Rotate the token
 
-*(Phase 1.)* New token (A5) → replace `API_TOKEN` in Script Properties → builder makes new setup codes → paste on each phone.
+Do this if a setup code leaks (sent to the wrong person, left in a thread) or a
+phone is lost. Until each phone pastes the new code it shows "Setup code
+needed"; its saved plan stays on the phone (EC-26).
+
+1. In the Terminal panel run `python3 ~/Desktop/Claude/Projects/Personal/brillo-travel/tools/rotate_token.py` (add `prod` at the end for the real sheet). It saves the new token and copies it without showing it.
+2. Open the sheet (STAGING or the real one).
+3. Click **Extensions → Apps Script**.
+4. In the left sidebar, click **Project Settings** (the gear).
+5. Scroll to **Script Properties** and click **Edit script properties**.
+6. Click into the `API_TOKEN` value box.
+7. Press Cmd+A, then Cmd+V.
+8. Click **Save script properties**.
+9. Close the Apps Script tab. No redeploy is needed; the script reads the property on every call.
+10. Tell the builder "token rotated". The builder runs `python3 tools/live_check.py` (staging only) to confirm the new token works and the old one is refused.
+11. Run B5 step 1, then step 2, for each phone.
+12. On each phone, open **Brillo**, tap the **ⓘ** button on Today, then tap **Settings**.
+13. Switch to Messages, long-press the setup-code message, and tap **Copy**.
+14. Back in Brillo, tap the **Replace setup code** box, then tap **Paste**.
+15. Wait for the pill to say **Synced just now**, then delete the setup-code message.
+
+If you stop after step 1 without saving the new token in step 8, tell the
+builder. `secrets.json` keeps the old token as `previousToken`, so the builder
+can put it back and the phones keep working.
 
 ### B5. Set up a phone
 
@@ -140,14 +162,19 @@ The setup code connects the installed app to one sheet. It must be pasted
 1. On the Mac, run this in the Terminal panel. It copies the code without showing it:
    `python3 ~/Desktop/Claude/Projects/Personal/brillo-travel/tools/make_setup_code.py`
    (add `prod` at the end for the real app).
-2. Paste it into a Messages thread with the phone's owner and send it right away.
-3. On the phone, open the app's link in Safari: staging `https://jbrillo15.github.io/brillo-travel-staging/`, prod `https://jbrillo15.github.io/brillo-travel/`.
-4. Tap Share → **Add to Home Screen** → **Add**.
-5. Open **Brillo** from the home screen.
-6. Pick the phone's owner in "Whose phone is this?".
-7. In Messages, long-press the code → **Copy**.
-8. Back in Brillo, tap the setup-code box → **Paste**. The box clears itself and Today appears.
-9. Delete the setup-code message.
+2. In Messages, open the thread with the phone's owner, press Cmd+V, and send.
+3. On the phone, in Messages, tap the app's link (or type it into Safari): staging `https://jbrillo15.github.io/brillo-travel-staging/`, prod `https://jbrillo15.github.io/brillo-travel/`.
+4. Tap the Share button (square with an up arrow).
+5. Scroll down and tap **Add to Home Screen**.
+6. Leave "Open as Web App" on if it appears, and tap **Add**.
+7. Open **Brillo** from the home screen.
+8. Pick the phone's owner in "Whose phone is this?".
+9. Switch to Messages and long-press the setup-code message.
+10. Tap **Copy**.
+11. Back in Brillo, tap the **Setup code** box.
+12. Tap **Paste**. The box clears itself and Today appears.
+13. Wait for the pill under the greeting to say **Synced just now** (up to 20 seconds).
+14. Delete the setup-code message from the thread.
 
 ### B6. Deploy to staging / prod
 
@@ -160,16 +187,26 @@ approved release). GitHub Pages publishes in about a minute. Phones show
 two files: `Code.gs` and `Parse.gs` (an exact copy of `js/parse.js`).
 
 0. **Real sheet only:** do B1 (named version + backup copy) first. The first snapshot writes IDs into rows that lack them.
-1. Open the sheet (STAGING or the real one) → **Extensions → Apps Script**.
-2. Click **Code.gs** in the file list, press Cmd+A, then Delete.
-3. In the Terminal panel run `pbcopy < ~/Desktop/Claude/Projects/Personal/brillo-travel/server/Code.gs`, click into the editor, press Cmd+V.
-4. If there's no **Parse.gs** yet: click **+** next to Files → **Script** → type `Parse` → Return.
-5. Click **Parse.gs**, press Cmd+A, then Delete.
-6. In the Terminal panel run `pbcopy < ~/Desktop/Claude/Projects/Personal/brillo-travel/js/parse.js`, click into the editor, press Cmd+V.
-7. Press Cmd+S.
-8. **Deploy → Manage deployments** → pencil → Version **New version** → Description `vX.Y.Z` → **Deploy** (B2: never "New deployment").
-
-9. If Google asks you to authorize again, choose your account → **Advanced → Go to (project name) (unsafe)** → **Allow**.
-10. Tell the builder "script deployed". The builder runs `python3 tools/live_check.py` (staging only), which prints ok, env, row counts and issues, never the token.
+1. Open the sheet (STAGING or the real one).
+2. Click **Extensions → Apps Script**.
+3. Click **Code.gs** in the file list.
+4. Click into the editor.
+5. Press Cmd+A, then Delete.
+6. In the Terminal panel run `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pbcopy < ~/Desktop/Claude/Projects/Personal/brillo-travel/server/Code.gs`. (Without the UTF-8 part, Japanese and symbols arrive garbled.)
+7. Click into the editor and press Cmd+V.
+8. If there's no **Parse.gs** in the file list: click **+** next to Files, choose **Script**, type `Parse` and press Return.
+9. Click **Parse.gs** in the file list.
+10. Click into the editor.
+11. Press Cmd+A, then Delete.
+12. In the Terminal panel run `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pbcopy < ~/Desktop/Claude/Projects/Personal/brillo-travel/js/parse.js`.
+13. Click into the editor and press Cmd+V.
+14. Press Cmd+S.
+15. Click **Deploy → Manage deployments**.
+16. Click the pencil (Edit) on the existing deployment.
+17. Under Version, choose **New version**.
+18. In Description, type `vX.Y.Z`.
+19. Click **Deploy** (B2: never "New deployment").
+20. If Google asks you to authorize again: choose your account, then **Advanced → Go to (project name) (unsafe) → Allow**.
+21. Tell the builder "script deployed". The builder runs `python3 tools/live_check.py` (staging only), which prints ok, env, row counts and issues, never the token.
 
 The first snapshot after a deploy writes IDs into any rows that lack them (ID column only, empty cells only).

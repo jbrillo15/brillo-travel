@@ -8,7 +8,7 @@
   var S = {
     env: null, db: null, setup: null, owner: null, snapshot: null, vm: BT.model.build(null),
     status: { state: 'idle' }, sheet: null, update: null, updateNote: null, setupError: null,
-    simulate: null, storageError: null, sync: null
+    simulate: null, storageError: null, sync: null, incompatible: null
   };
   BT.app = { state: S };
 
@@ -49,6 +49,7 @@
     if (S.vm.settings.minAppVersion && BT.model.semverLess(BT.config.version, S.vm.settings.minAppVersion)) {
       out.push(html`<div class="banner"><div class="msg"><strong>This app is out of date</strong><span>The sheet expects version ${S.vm.settings.minAppVersion}. Everything still shows; update when you can.</span></div></div>`);
     }
+    if (S.incompatible) out.push(html`<div class="banner"><div class="msg"><strong>App and sheet don't match</strong><span>${S.incompatible}</span></div><a class="btn" href="#/settings">Settings</a></div>`);
     if (S.status.state === 'setup' && S.setup) out.push(html`<div class="banner"><div class="msg"><strong>Setup code needed</strong><span>The sheet didn't accept this phone's code. Your saved plans are still here.</span></div><a class="btn" href="#/settings">Settings</a></div>`);
     return out;
   }
@@ -80,6 +81,7 @@
       })}</nav>`);
     renderSheet();
   }
+  function typing() { return !!(document.activeElement && /TEXTAREA|INPUT|SELECT/.test(document.activeElement.tagName)); }
   function renderSyncOnly() {
     var st = BT.sync.describe(S.status, T.now());
     Array.prototype.forEach.call(document.querySelectorAll('[data-sync]'), function (el) {
@@ -141,12 +143,18 @@
       sync.onChange(function (st) {
         if (sync !== S.sync) return;            // a sync left over from before an env switch
         var prevRev = S.snapshot && S.snapshot.rev;
+        var wasIncompatible = S.incompatible;
         S.status = st;
+        // The mismatch banner stays up until the script answers again (synced, or setup
+        // needed); offline or a failed sync says nothing about whether it now matches.
+        if (st.state === 'incompatible') S.incompatible = st.error && st.error.message || 'The app and the sheet\'s script don\'t match.';
+        else if (st.state === 'synced' || st.state === 'setup') S.incompatible = null;
+        var bannerChanged = wasIncompatible !== S.incompatible && !typing();   // shows on the next render instead
         if (st.state === 'synced') {
           S.db.get('snapshot', 'current').then(function (snap) {
-            if (snap && snap.rev !== prevRev) { applySnapshot(snap); render(); } else renderSyncOnly();
+            if (snap && snap.rev !== prevRev) { applySnapshot(snap); render(); } else if (bannerChanged) render(); else renderSyncOnly();
           });
-        } else if (st.state === 'setup') render();
+        } else if (st.state === 'setup' || bannerChanged) render();
         else renderSyncOnly();
       });
       return S.sync.load();
@@ -274,7 +282,7 @@
     // Keep Now/Next current; never while someone is typing on the setup screen.
     setInterval(function () {
       if (document.visibilityState === 'visible' && !S.sheet && S.setup && route().name === 'today' &&
-          !(document.activeElement && /TEXTAREA|INPUT|SELECT/.test(document.activeElement.tagName))) render();
+          !typing()) render();
     }, 60000);
   }
 

@@ -70,19 +70,30 @@
           if (setup.env && res.env && res.env !== setup.env) {
             throw new api.ApiError('bad', 'The script says it is ' + res.env + ', but this phone is set up for ' + setup.env + '.');
           }
+          // §13: a different API number means the reply may not have the shape this app
+          // reads. Keep the saved plan (read-only) and say which side needs updating. The
+          // Phase 2 push must not run in this state.
+          if (res.api !== BT.config.api) {
+            var mismatch = new api.ApiError('incompatible', res.api > BT.config.api
+              ? 'The sheet\'s script is newer than this app. Check for an update in Settings; it can take a few minutes to appear. Your saved plan still shows.'
+              : 'The sheet\'s script is older than this app. The script needs redeploying. Your saved plan still shows.');
+            mismatch.serverVersion = res.serverVersion || null;
+            throw mismatch;
+          }
           var snap = merge(prev, res);
           var at = snap.receivedAt;
           return ctx.store.put('snapshot', 'current', snap)
             .then(function () { return ctx.store.put('meta', 'lastSyncAt', at); })
             .then(function () {
               failures = 0;
-              set({ state: 'synced', lastSyncAt: at, error: null, issues: countIssues(snap.issues), staleTabs: snap.staleTabs });
+              set({ state: 'synced', lastSyncAt: at, error: null, issues: countIssues(snap.issues), staleTabs: snap.staleTabs, serverVersion: snap.serverVersion });
               return snap;
             });
         });
       }).catch(function (e) {
         var kind = e && e.kind || 'storage';
         if (kind === 'auth') { set({ state: 'setup', error: e }); return null; }   // EC-26: data stays on the phone
+        if (kind === 'incompatible') { set({ state: 'incompatible', error: e, serverVersion: e.serverVersion }); return null; }   // retrying won't help; the usual triggers try again
         failures++;
         var delay = BACKOFF_S[Math.min(failures - 1, BACKOFF_S.length - 1)] * 1000;
         set({ state: kind === 'offline' || kind === 'timeout' || kind === 'portal' ? 'offline' : 'problem', error: e, retryInMs: delay });
@@ -108,6 +119,7 @@
     if (st.state === 'syncing') return { state: 'waiting', text: 'Syncing…' };
     if (st.state === 'offline') return { state: 'offline', text: 'Offline · showing saved copy' };
     if (st.state === 'problem') return { state: 'problem', text: 'Couldn\'t sync · will retry' };
+    if (st.state === 'incompatible') return { state: 'problem', text: 'Version mismatch' };
     if (st.issues && st.issues.errors) return { state: 'problem', text: 'Sheet problem' };
     if (!st.lastSyncAt) return { state: 'offline', text: 'Not synced yet' };
     var mins = Math.max(0, Math.round(((nowDate || new Date()) - new Date(st.lastSyncAt)) / 60000));

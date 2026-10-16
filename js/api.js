@@ -7,7 +7,7 @@
   var BT = window.BT = window.BT || {};
 
   function ApiError(kind, message, code) {
-    this.kind = kind;          // offline | timeout | portal | auth | lock | server | bad
+    this.kind = kind;          // offline | timeout | portal | auth | lock | server | bad | incompatible
     this.code = code || null;
     this.message = message;
   }

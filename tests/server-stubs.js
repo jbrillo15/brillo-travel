@@ -2,7 +2,7 @@
    (HANDOFF §12 L2, stubbed). Each test calls STUB.reset(tabs, props). */
 (function () {
   'use strict';
-  var STUB = window.STUB = { writes: [], lockBusy: false, lockReleased: 0 };
+  var STUB = window.STUB = { writes: [], lockBusy: false, lockHeld: false, lockReleased: 0, onWrite: null };
 
   function fmtDate(d, tz, pattern) {
     var p = BT.time.partsIn(d, tz);
@@ -34,10 +34,10 @@
     var sh = this;
     return {
       setValues: function (vals) {
-        STUB.writes.push({ tab: sh.name, row: row, col: col, n: vals.length });
+        STUB.writes.push({ tab: sh.name, row: row, col: col, n: vals.length, locked: STUB.lockHeld });
         for (var i = 0; i < (nRows || 1); i++) for (var j = 0; j < (nCols || 1); j++) sh.rows[row - 1 + i][col - 1 + j] = vals[i][j];
       },
-      setValue: function (v) { this.setValues([[v]]); },
+      setValue: function (v) { this.setValues([[v]]); if (STUB.onWrite) STUB.onWrite(sh.name, row, col); },
       getValue: function () { return sh.rows[row - 1][col - 1]; }
     };
   };
@@ -45,7 +45,9 @@
   STUB.reset = function (tabs, props) {
     STUB.writes = [];
     STUB.lockBusy = false;
+    STUB.lockHeld = false;
     STUB.lockReleased = 0;
+    STUB.onWrite = null;
     STUB.sheets = {};
     Object.keys(tabs).forEach(function (name) {
       var t = tabs[name];
@@ -65,8 +67,10 @@
   window.LockService = {
     getScriptLock: function () {
       return {
-        waitLock: function () { if (STUB.lockBusy) throw new Error('Lock timeout'); },
-        releaseLock: function () { STUB.lockReleased++; }
+        // One holder at a time, like the real script lock. A second caller while it's
+        // held stands in for a concurrent request that waits out LOCK_WAIT_MS (EC-17).
+        waitLock: function () { if (STUB.lockBusy || STUB.lockHeld) throw new Error('Lock timeout'); STUB.lockHeld = true; },
+        releaseLock: function () { STUB.lockHeld = false; STUB.lockReleased++; }
       };
     }
   };

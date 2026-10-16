@@ -164,6 +164,39 @@ suite('core', function () {
     });
   });
 
+  test('§13: a newer script API keeps the saved plan, says "update the app", and schedules no retry', function () {
+    var store = memStore();
+    store.d.snapshot.current = { rev: 'old', data: { itinerary: [{ id: 'x' }] } };
+    var newer = goodSnapshot(); newer.api = BT.config.api + 1;
+    return withFetch(function () { return reply(newer); }, function () {
+      var s = makeSync(store);
+      return s.pull().then(function () {
+        eq(store.d.snapshot.current.rev, 'old', 'plan kept');
+        eq(s.status().state, 'incompatible');
+        ok(/newer than this app/.test(s.status().error.message));
+        eq(s.scheduled.length, 0, 'no backoff retry');
+        eq(BT.sync.describe(s.status()).text, 'Version mismatch');
+      });
+    });
+  });
+
+  test('§13: an older script API says the script needs redeploying; a matching reply recovers', function () {
+    var store = memStore();
+    var older = goodSnapshot(); older.api = BT.config.api - 1;
+    var n = 0;
+    return withFetch(function () { return reply(n++ ? goodSnapshot() : older); }, function () {
+      var s = makeSync(store);
+      return s.pull().then(function () {
+        eq(store.d.snapshot.current, undefined, 'nothing stored from the mismatched reply');
+        ok(/older than this app/.test(s.status().error.message));
+        return s.pull();
+      }).then(function () {
+        eq(s.status().state, 'synced');
+        eq(store.d.snapshot.current.rev, 'r1');
+      });
+    });
+  });
+
   test('a reply from the other env is refused', function () {
     var store = memStore();
     var prodReply = goodSnapshot(); prodReply.env = 'prod';

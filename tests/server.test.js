@@ -98,6 +98,47 @@ suite('server', function () {
     ok(snap().rev !== a);
   });
 
+  test('EC-17: a second snapshot during ensureIds is refused; every ID is written under the lock, once', function () {
+    STUB.reset(tabs(function (t) {
+      t.Itinerary.values[2][0] = '';
+      t.Itinerary.values[6][0] = '';
+      t.Itinerary.values[7][0] = '';
+    }));
+    var nested = null;
+    STUB.onWrite = function () {
+      if (nested) return;
+      nested = snap();           // a second phone syncs while the first is assigning IDs
+    };
+    var r = snap();
+    ok(r.ok, 'the first snapshot succeeds');
+    eq(nested.code, 'LOCK_TIMEOUT', 'the concurrent one waits out the lock');
+    eq(STUB.writes.length, 3, 'one write per missing ID, none from the second call');
+    eq(STUB.writes.filter(function (w) { return !w.locked; }).length, 0, 'every write happened under the lock');
+    eq(STUB.lockHeld, false, 'lock released');
+    var ids = idCol('Itinerary').filter(Boolean);
+    eq(Object.keys(ids.reduce(function (m, id) { m[id] = 1; return m; }, {})).length, ids.length, 'IDs are unique');
+    STUB.onWrite = null;
+    STUB.writes = [];
+    snap();
+    eq(STUB.writes.length, 0, 'the retry assigns nothing new');
+  });
+
+  test('EC-13: merged cells read as blank except the first; formula results read as values; no crash', function () {
+    STUB.reset(tabs(function (t) {
+      t.Itinerary.values[4][1] = '';            // Date merged down from the row above: only the first cell has it
+      t.Itinerary.values[2][13] = 1000;         // a formula's result arrives as its value
+    }));
+    var r = snap();
+    ok(r.ok, 'snapshot still succeeds');
+    var titles = r.data.itinerary.map(function (x) { return x.title; });
+    ok(titles.indexOf('Fake market') >= 0, 'the first row of the merge keeps its date');
+    ok(titles.indexOf('Fake lunch') < 0, 'the blank-date row is hidden, not guessed');
+    var v03 = r.issues.filter(function (i) { return i.id === 'V-03' && i.row === 5; })[0];
+    ok(v03 && /Date/.test(v03.message), 'reported as V-03 on row 5 naming Date');
+    eq(r.data.itinerary.filter(function (x) { return x.title === 'Land and train to the hotel'; })[0].estCost, 1000);
+    eq(idCol('Itinerary')[3], 'it_a4', 'the hidden row keeps its ID');
+  });
+
   test('busy lock → LOCK_TIMEOUT, nothing written', function () {
     STUB.reset(tabs(function (t) { t.Itinerary.values[2][0] = ''; }));
     STUB.lockBusy = true;

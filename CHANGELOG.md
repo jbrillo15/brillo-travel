@@ -4,6 +4,12 @@ Versions follow semantic versioning. 0.x during the build; 1.0.0 is the trip
 release. The version here must match `js/config.js` and the service worker
 cache name (a unit test checks this).
 
+## 0.1.2 (staging)
+
+- If the sheet's script speaks a different API version than the app, Brillo keeps showing the saved plan, says which side needs updating ("App and sheet don't match"), and stops retrying until the next normal sync (HANDOFF §13). Settings shows the script's version next to the app's.
+- Stronger tests: no skipped or repeated trip day across the flight and the zone switch, no app file reading the phone's own time zone, Today re-deriving after midnight on return (EC-04); merged cells and formula results (EC-13); a second snapshot during ID assignment (EC-17).
+- RUNBOOK: token rotation (B4) written out with `tools/rotate_token.py`; phone setup (B5) and script deploy (B6) split to one action per step, with the UTF-8 copy fix.
+
 ## 0.1.1 (staging)
 
 - After a successful setup-code paste, the "Setup code needed" banner no longer lingers until the next screen change. Found in the first live end-to-end check.
