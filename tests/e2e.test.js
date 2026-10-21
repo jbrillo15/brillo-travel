@@ -252,7 +252,7 @@ suite('e2e', function () {
         has(w, /Day 2 of 8 · Osaka/, 'saved plan still shows');
         has(w, /App and sheet don't match/, 'banner stays across screens');
         w.BT.api.fetch = function () { return Promise.reject(new TypeError('offline (stub)')); };
-        return w.BT.app.state.sync.pull('manual').then(function () { return new Promise(function (r) { setTimeout(r, 80); }); });
+        return w.BT.app.state.sync.sync('manual').then(function () { return new Promise(function (r) { setTimeout(r, 80); }); });
       }).then(function () {
         has(w, /App and sheet don't match/, 'going offline doesn\'t clear the mismatch');
       });
@@ -262,6 +262,201 @@ suite('e2e', function () {
   test('a reload keeps the screen (spike L10)', function () {
     return E2E.seed({ jst: '2026-11-20T10:00' }).then(function () { return E2E.load('#/item/it_a3'); }).then(function (w) {
       has(w, /Fake market/);
+    });
+  });
+
+  // ---------- Lists (v0.2, HANDOFF §8.3) ----------
+  function listSnap() { return E2E.snapshot(E2E.withLists); }
+  function rowFor(w, id) { return w.document.querySelector('.check[data-id="' + id + '"]'); }
+
+  test('Lists overview: fixed order, progress, overdue count; deleted rows hidden', function () {
+    return E2E.seed({ pt: '2026-10-20T09:00', snapshot: listSnap() }).then(function () { return E2E.load('#/lists'); }).then(function (w) {
+      var names = Array.prototype.map.call(w.document.querySelectorAll('.list-name'), function (n) { return n.textContent; });
+      deepEq(names, ['Pre-trip', 'Packing', 'Departure day']);
+      has(w, /0 of 2 done · 1 overdue/);
+      has(w, /1 of 3 done/, 'the deleted packing row is not counted');
+      ok(w.document.querySelector('.tab[aria-current="page"][href="#/lists"]'), 'Lists tab is current');
+      E2E.screenChecks(w);
+    });
+  });
+
+  test('AC-L1 (phone half): ticking offline shows at once, survives a relaunch, and the sync line says it\'s saved', function () {
+    return E2E.seed({ pt: '2026-10-20T09:00', owner: 'Lindsay', snapshot: listSnap() }).then(function () { return E2E.load('#/list/Pre-trip'); }).then(function (w) {
+      ok(!rowFor(w, 'ck_p1').classList.contains('is-done'));
+      has(w, /Overdue · /, 'overdue item marked (AC-L3)');
+      return E2E.click(w, '.check[data-id="ck_p1"] .label').then(function () {
+        ok(rowFor(w, 'ck_p1').classList.contains('is-done'), 'ticked at once');
+        eq(rowFor(w, 'ck_p1').querySelector('button.box').getAttribute('aria-pressed'), 'true');
+        has(w, /Waiting to sync/);
+        return E2E.wait(150);
+      }).then(function () { return E2E.outbox(); }).then(function (ops) {
+        eq(ops.length, 1);
+        eq(ops[0].type, 'checklist.update');
+        deepEq(ops[0].fields, { done: true, doneBy: 'Lindsay' });
+        return E2E.load('#/list/Pre-trip');                       // relaunch, still offline
+      }).then(function (w2) {
+        ok(rowFor(w2, 'ck_p1').classList.contains('is-done'), 'still ticked after relaunch');
+        return E2E.wait(400).then(function () {
+          ok(/1 change saved on this phone|1 change waiting|Syncing/.test(w2.document.querySelector('[data-sync]').textContent), w2.document.querySelector('[data-sync]').textContent);
+          E2E.screenChecks(w2);
+        });
+      });
+    });
+  });
+
+  test('AC-L1 (sync half): back online, the change is pushed, then the fresh snapshot shows it with no pending mark', function () {
+    var script = E2E.fakeScript();
+    var queued = { opId: 'op_e2e000001', seq: 1, type: 'checklist.update', id: 'ck_p1', fields: { done: true, doneBy: 'Jordan' }, clientUpdatedAt: new Date().toISOString(), status: 'pending' };
+    return E2E.seed({ pt: '2026-10-20T09:00', snapshot: listSnap(), outbox: [queued] }).then(function () {
+      E2E.fetchStub = script;
+      return E2E.load('#/list/Pre-trip');
+    }).then(function (w) {
+      return E2E.wait(600).then(function () {
+        // The saved snapshot came from script 0.1.0, so the app checks the script first.
+        deepEq(script.actions().slice(0, 3), ['snapshot', 'mutate', 'snapshot'], 'check, push, then pull');
+        ok(rowFor(w, 'ck_p1').classList.contains('is-done'));
+        ok(!/Waiting to sync/.test(E2E.text(w)), 'pending mark gone');
+        has(w, /Done by Jordan/);
+        ok(/Synced/.test(w.document.querySelector('[data-sync]').textContent));
+        return E2E.outbox();
+      }).then(function (ops) { eq(ops.length, 0, 'outbox empty'); });
+    });
+  });
+
+  test('AC-L4: Packing groups by bag with counts; All items view is remembered', function () {
+    return E2E.seed({ pt: '2026-10-20T09:00', snapshot: listSnap() }).then(function () { return E2E.load('#/list/Packing'); }).then(function (w) {
+      var heads = Array.prototype.map.call(w.document.querySelectorAll('.bag-head'), function (h) { return h.innerText.replace(/\s+/g, ' '); });
+      deepEq(heads, ['Suitcase 0 of 1 packed', 'Jordan backpack 1 of 1 packed', 'Lindsay backpack 0 of 1 packed']);
+      E2E.screenChecks(w);
+      return E2E.click(w, '[data-action="pack-view"][data-view="all"]').then(function () {
+        eq(w.document.querySelectorAll('.bag-head').length, 0);
+        eq(w.document.querySelectorAll('.check').length, 3);
+        return E2E.wait(100).then(function () { return E2E.load('#/list/Packing'); });
+      }).then(function (w2) {
+        eq(w2.document.querySelectorAll('.bag-head').length, 0, 'still All items after relaunch');
+      });
+    });
+  });
+
+  test('add, edit and delete an item: each shows at once and is queued for the sheet', function () {
+    return E2E.seed({ pt: '2026-10-20T09:00', snapshot: listSnap() }).then(function () { return E2E.load('#/list/Departure%20day'); }).then(function (w) {
+      var form = w.document.querySelector('form[data-action="add-check"]');
+      form.elements.item.value = 'Fake new item';
+      form.dispatchEvent(new w.Event('submit', { bubbles: true, cancelable: true }));
+      var id;
+      return E2E.wait(150).then(function () {
+        has(w, /Fake new item/);
+        var row = Array.prototype.filter.call(w.document.querySelectorAll('.check'), function (r) { return /Fake new item/.test(r.innerText); })[0];
+        id = row.getAttribute('data-id');
+        ok(/^ck_[a-z2-9]{8}$/.test(id), id);
+        eq(w.document.querySelector('form[data-action="add-check"] input[name="item"]').value, '', 'field cleared');
+        return E2E.go(w, '#/check/' + id);
+      }).then(function () {
+        var f = w.document.querySelector('form[data-action="save-check"]');
+        f.elements.owner.value = 'Lindsay';
+        f.elements.notes.value = 'bring the 日本語 note';
+        f.dispatchEvent(new w.Event('submit', { bubbles: true, cancelable: true }));
+        return E2E.wait(150);
+      }).then(function () {
+        ok(/#\/list\/Departure/.test(w.location.hash), 'back on the list');
+        has(w, /Lindsay/);
+        has(w, /bring the 日本語 note/);
+        return E2E.go(w, '#/check/' + id);
+      }).then(function () {
+        w.confirm = function () { return true; };
+        return E2E.click(w, '[data-action="delete-check"]');
+      }).then(function () { return E2E.wait(100); }).then(function () {
+        ok(!/Fake new item/.test(E2E.text(w)), 'gone from the list');
+        return E2E.outbox();
+      }).then(function (ops) {
+        deepEq(ops.sort(function (a, b) { return a.seq - b.seq; }).map(function (o) { return o.type; }), ['checklist.add', 'checklist.update', 'checklist.delete']);
+        deepEq(ops[1].fields, { owner: 'Lindsay', notes: 'bring the 日本語 note' }, 'only changed fields are sent');
+        eq(ops[0].fields.list, 'Departure day');
+        eq(ops[0].fields.sort, 70);
+      });
+    });
+  });
+
+  test('Sync issues: a refused change is listed with its reason; Retry resends; Discard removes', function () {
+    var refuse = true;
+    var script = E2E.fakeScript({ status: function () { return refuse ? 'rejected' : 'applied'; } });
+    var queued = { opId: 'op_e2e000002', seq: 1, type: 'checklist.update', id: 'ck_p2', fields: { done: true }, clientUpdatedAt: new Date().toISOString(), status: 'pending' };
+    return E2E.seed({ pt: '2026-10-20T09:00', snapshot: listSnap(), outbox: [queued] }).then(function () {
+      E2E.fetchStub = script;
+      return E2E.load('#/lists');
+    }).then(function (w) {
+      return E2E.wait(600).then(function () {
+        has(w, /1 change the sheet didn't accept/);
+        eq(w.document.querySelector('[data-sync]').textContent, '1 sync issue');
+        return E2E.click(w, '.issue-row');
+      }).then(function () {
+        has(w, /Tick “Fake insurance”/);
+        has(w, /Not found in the sheet \(fake\)/);
+        E2E.screenChecks(w);
+        refuse = false;
+        return E2E.click(w, '[data-action="retry-op"]');
+      }).then(function () { return E2E.wait(500); }).then(function () {
+        has(w, /No sync issues/);
+        return E2E.outbox();
+      }).then(function (ops) {
+        eq(ops.length, 0);
+        refuse = true;                                   // a second refused change, this time discarded
+        return w.BT.app.state.sync.enqueue('checklist.update', 'ck_p1', { done: true });
+      }).then(function () { return w.BT.app.state.sync.sync('manual'); }).then(function () { return E2E.wait(150); }).then(function () {
+        has(w, /Tick “Fake booking”/);
+        w.confirm = function () { return true; };
+        return E2E.click(w, '[data-action="discard-op"]');
+      }).then(function () { return E2E.wait(150); }).then(function () {
+        has(w, /No sync issues/);
+        return E2E.outbox();
+      }).then(function (ops) { eq(ops.length, 0, 'discarded'); });
+    });
+  });
+
+  test('held: an old script (0.1.0) gets no push; a banner says changes wait for the update', function () {
+    var script = E2E.fakeScript({ serverVersion: '0.1.0' });
+    return E2E.seed({ pt: '2026-10-20T09:00', snapshot: listSnap() }).then(function () {
+      E2E.fetchStub = script;
+      return E2E.load('#/list/Pre-trip');
+    }).then(function (w) {
+      return E2E.wait(400).then(function () { return E2E.click(w, '.check[data-id="ck_p1"] .label'); })
+        .then(function () { return w.BT.app.state.sync.sync('manual'); }).then(function () { return E2E.wait(150); })
+        .then(function () {
+          ok(script.actions().indexOf('mutate') < 0, 'never pushed: ' + script.actions().join());
+          has(w, /Changes waiting/);
+          has(w, /updated to 0\.2\.0/);
+          ok(/script update needed/.test(w.document.querySelector('[data-sync]').textContent));
+          ok(rowFor(w, 'ck_p1').classList.contains('is-done'), 'still shown on the phone');
+        });
+    });
+  });
+
+  test('Today before the trip: overdue Pre-trip items first, tickable there (AC-L3)', function () {
+    return E2E.seed({ pt: '2026-10-20T09:00', snapshot: listSnap() }).then(function () { return E2E.load(); }).then(function (w) {
+      var first = w.document.querySelector('.checks .check');
+      ok(/Fake booking/.test(first.innerText) && /Overdue/.test(first.innerText), first.innerText);
+      return E2E.click(w, '.check[data-id="ck_p1"] .label').then(function () {
+        ok(!/Fake booking/.test(E2E.text(w)), 'a ticked item leaves the to-do list');
+        E2E.screenChecks(w);
+      });
+    });
+  });
+
+  test('update prompt: shows the new version, waits for the tap, then asks the worker to take over; queued changes stay', function () {
+    var queued = { opId: 'op_e2e000003', seq: 1, type: 'checklist.update', id: 'ck_p1', fields: { done: true }, clientUpdatedAt: new Date().toISOString(), status: 'pending' };
+    return E2E.seed({ pt: '2026-10-20T09:00', snapshot: listSnap(), outbox: [queued] }).then(function () { return E2E.load('#/today'); }).then(function (w) {
+      var sent = [];
+      var worker = { postMessage: function (m) { sent.push(m); } };
+      w.BT.app.state.update = { worker: worker, version: '9.9.9' };
+      w.BT.app.render();
+      has(w, /Update available/);
+      has(w, /Version 9\.9\.9/);
+      eq(sent.length, 0, 'never applied on its own');
+      return E2E.click(w, '[data-action="apply-update"]').then(function () {
+        deepEq(sent, [{ type: 'skipWaiting' }]);
+        eq(w.BT.app.state.updating, true, 'reloads when the new worker takes control');
+        return E2E.outbox();
+      }).then(function (ops) { eq(ops.length, 1, 'the queued change is still on the phone'); });
     });
   });
 });

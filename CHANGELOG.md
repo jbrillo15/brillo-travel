@@ -4,6 +4,15 @@ Versions follow semantic versioning. 0.x during the build; 1.0.0 is the trip
 release. The version here must match `js/config.js` and the service worker
 cache name (a unit test checks this).
 
+## 0.2.0 (staging)
+
+- **Lists:** the Pre-trip, Packing, Departure day and Return packing checklists from the sheet, shared by both phones. Tap a row to tick it; add items, edit owner, bag, due date and notes, or delete one (it stays in the sheet, marked Deleted). Packing can be grouped by bag with a count per bag. Overdue items are marked in amber, and overdue Pre-trip items show on Today, where they can be ticked.
+- **Changes work offline.** Every change is saved on the phone first and shows at once, marked "Waiting to sync". Brillo sends queued changes, then fetches the sheet, a couple of seconds after a change and at every usual sync. Changes are never dropped on their own: one the sheet refuses waits under Sync issues until you retry or discard it.
+- If both phones change the same item, the later change wins on both.
+- While the app and the sheet's script don't match, nothing is sent, and that state is remembered after the app closes. With a script older than 0.2.0, changes wait on the phone with a banner saying so.
+- The sync line counts queued changes ("2 changes waiting", "Offline · 2 changes saved on this phone").
+- Script 0.2.0: writes (`mutate`) with each change applied once, the newest edit winning, rows found by ID, and text always stored as text. `resetStaging` clears only the live tests' own rows.
+
 ## 0.1.4 (staging)
 
 - Today: the day line ("Day 2 of 8 · Osaka") moves under the greeting on one full line, so it no longer wraps beside the station mark.

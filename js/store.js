@@ -58,6 +58,7 @@
       put: function (s, k, v) { return tx(s, 'readwrite', function (o) { o.put(v, k); }); },
       del: function (s, k) { return tx(s, 'readwrite', function (o) { o.delete(k); }); },
       keys: function (s) { return tx(s, 'readonly', function (o) { return o.getAllKeys(); }); },
+      all: function (s) { return tx(s, 'readonly', function (o) { return o.getAll(); }); },
       clear: function (s) { return tx(s, 'readwrite', function (o) { o.clear(); }); },
       close: function () { db.close(); },
       raw: db

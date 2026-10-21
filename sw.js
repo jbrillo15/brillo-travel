@@ -4,7 +4,7 @@
    skips waiting on its own. The cache is named brillo-<env>-<version>, and
    this env's worker only deletes its own old caches (staging and prod share
    one origin). VERSION must match js/config.js and CHANGELOG.md. */
-var VERSION = '0.1.4';
+var VERSION = '0.2.0';
 var ENV = /\/brillo-travel\//.test(self.location.pathname) ? 'prod' : 'staging';
 var PREFIX = 'brillo-' + ENV + '-';
 var CACHE = PREFIX + VERSION;
@@ -12,7 +12,7 @@ var SHELL = [
   './', './index.html', './manifest.webmanifest', './css/app.css',
   './js/config.js', './js/parse.js', './js/time.js', './js/store.js', './js/api.js', './js/sync.js',
   './js/links.js', './js/model.js', './js/ui/dom.js', './js/ui/parts.js', './js/ui/today.js',
-  './js/ui/trip.js', './js/ui/cards.js', './js/ui/info.js', './js/ui/settings.js', './js/app.js',
+  './js/ui/trip.js', './js/ui/lists.js', './js/ui/cards.js', './js/ui/info.js', './js/ui/settings.js', './js/app.js',
   './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png'
 ];
 

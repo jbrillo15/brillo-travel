@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brillo Travel — live staging tests (L2)</title>
+<style>
+  body { font: 14px/1.5 ui-monospace, Menlo, monospace; background: #0D1322; color: #EDF0F7; margin: 16px; }
+  .all-pass #results { color: #74D3B8; }
+  .has-failures #results { color: #FF8F8F; }
+  pre { white-space: pre-wrap; }
+  textarea { width: 100%; max-width: 40rem; font: inherit; background: #1A1C1F; color: inherit; border: 1px solid #3E434A; border-radius: 8px; padding: 8px; }
+</style>
+</head>
+<body>
+<h1>Brillo Travel — live staging tests (HANDOFF §12 L2, live)</h1>
+<p>Runs the write-path cases against the <b>staging</b> script after <code>resetStaging</code>, then resets again.
+Test rows use IDs with a capital T (<code>ck_T…</code>), so the staging trip data is never touched.
+Paste the staging setup code below. It is kept in memory only and the box clears at once. Prod codes are refused.</p>
+<textarea id="code" rows="3" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Paste the staging setup code"></textarea>
+<pre id="results">Waiting for a setup code…</pre>
+<script src="harness.js"></script>
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<script>
+(function () {
+  'use strict';
+  var setup = null;
+  var run = Math.random().toString(36).slice(2, 8);
+  var T0 = Date.now();
+  var n = 0;
+  function at(sec) { return new Date(T0 + sec * 1000).toISOString(); }
+  function op(type, id, fields, when, opId) {
+    return { opId: opId || 'op_live' + run + (++n), type: type, id: id, fields: fields || {}, clientUpdatedAt: when || at(n) };
+  }
+  function call(action, extra, token) {
+    var s = token ? { env: setup.env, apiUrl: setup.apiUrl, token: token, device: 'live-test' } : setup;
+    return BT.api.call(s, action, extra).catch(function (e) { return { ok: false, code: e.code, kind: e.kind, message: e.message }; });
+  }
+  function mutate(ops) { return call('mutate', { ops: ops }); }
+  function snapshot() { return call('snapshot'); }
+  function find(snap, tab, id) { return ((snap.data && snap.data[tab]) || []).filter(function (r) { return r.id === id; })[0]; }
+  var CK = 'ck_T' + run, CK2 = 'ck_T' + run + 'b', EX = 'ex_T' + run, ID = 'id_T' + run;
+
+  suite('live', function () {
+    test('the script is staging, API 1, server 0.2.0 or later', function () {
+      return snapshot().then(function (r) {
+        eq(r.ok, true, 'snapshot ok'); eq(r.env, 'staging'); eq(r.api, 1);
+        ok(!/^0\.[01]\./.test(r.serverVersion), 'serverVersion ' + r.serverVersion);
+      });
+    });
+    test('resetStaging works before the run', function () {
+      return call('resetStaging').then(function (r) { eq(r.ok, true, JSON.stringify(r)); });
+    });
+    test('wrong token: mutate is refused (AUTH)', function () {
+      return call('mutate', { ops: [] }, setup.token + 'x').then(function (r) { eq(r.code, 'AUTH'); });
+    });
+    test('checklist.add applies; replaying the same opId is a duplicate', function () {
+      var o = op('checklist.add', CK, { list: '_Live test', item: 'Live item ' + run, owner: 'Both', bag: '—', sort: 9990 });
+      return mutate([o]).then(function (r) {
+        eq(r.ok, true, JSON.stringify(r)); eq(r.results[0].status, 'applied', JSON.stringify(r.results[0]));
+        return mutate([o]);
+      }).then(function (r) { eq(r.results[0].status, 'duplicate'); });
+    });
+    test('last write wins: newer applies, older is stale; the snapshot shows the newer toggle', function () {
+      return mutate([op('checklist.update', CK, { done: true, doneBy: 'Lindsay' }, at(60))]).then(function (r) {
+        eq(r.results[0].status, 'applied');
+        return mutate([op('checklist.update', CK, { done: false }, at(30))]);
+      }).then(function (r) {
+        eq(r.results[0].status, 'stale');
+        return snapshot();
+      }).then(function (s) {
+        var c = find(s, 'checklists', CK);
+        ok(c, 'row is in the snapshot'); eq(c.done, true); eq(c.doneBy, 'Lindsay'); eq(c.list, '_Live test');
+        ok(c.doneAt, 'Done at filled');
+      });
+    });
+    test('Japanese, emoji and formula-looking text round-trip as plain text', function () {
+      return mutate([op('checklist.add', CK2, { list: '_Live test', item: '=1+1', notes: '日本語 🍣 +81 -3' }, at(70))]).then(function (r) {
+        eq(r.results[0].status, 'applied');
+        return snapshot();
+      }).then(function (s) {
+        var c = find(s, 'checklists', CK2);
+        eq(c.item, '=1+1', 'not evaluated'); eq(c.notes, '日本語 🍣 +81 -3');
+      });
+    });
+    test('bad ops are rejected with a reason and change nothing', function () {
+      return mutate([op('checklist.update', CK, { owner: 'Bob' }, at(80)), op('checklist.update', 'ck_Tmissing', { done: true }, at(80))]).then(function (r) {
+        eq(r.results[0].status, 'rejected'); ok(r.results[0].reason);
+        eq(r.results[1].status, 'rejected'); ok(/Not found/.test(r.results[1].reason));
+        return snapshot();
+      }).then(function (s) { eq(find(s, 'checklists', CK).owner, 'Both'); });
+    });
+    test('checklist.delete is soft', function () {
+      return mutate([op('checklist.delete', CK2, {}, at(90))]).then(function () { return snapshot(); })
+        .then(function (s) { eq(find(s, 'checklists', CK2).deleted, true); });
+    });
+    test('expense.upsert / expense.delete and idea.add / idea.update', function () {
+      return mutate([
+        op('expense.upsert', EX, { tripDate: '2026-11-21', amount: 1200, currency: 'JPY', envelope: 'Daily', category: 'Food', method: 'Cash', paidBy: 'Lindsay', note: 'live test' }, at(100)),
+        op('idea.add', ID, { nameEn: 'Live test idea', city: 'Kyoto', category: 'Café', status: 'Idea' }, at(100)),
+        op('idea.update', ID, { status: 'Planned', plannedDate: '2026-11-22' }, at(101)),
+        op('expense.delete', EX, {}, at(102))
+      ]).then(function (r) {
+        deepEq(r.results.map(function (x) { return x.status; }), ['applied', 'applied', 'applied', 'applied'], JSON.stringify(r.results));
+        return snapshot();
+      }).then(function (s) {
+        var e = find(s, 'expenses', EX), i = find(s, 'ideas', ID);
+        eq(e.amount, 1200); eq(e.deleted, true); eq(e.device, 'live-test');
+        eq(i.status, 'Planned'); eq(i.plannedDate, '2026-11-22');
+      });
+    });
+    test('resetStaging clears every test row again', function () {
+      return call('resetStaging').then(function (r) {
+        eq(r.ok, true); ok(r.cleared >= 4, 'cleared ' + r.cleared);
+        return snapshot();
+      }).then(function (s) {
+        ok(!find(s, 'checklists', CK) && !find(s, 'checklists', CK2) && !find(s, 'expenses', EX) && !find(s, 'ideas', ID), 'no test rows left');
+        eq((s.issues || []).filter(function (i) { return i.id === 'V-08'; }).length, 0, 'no duplicate IDs');
+      });
+    });
+  });
+
+  var box = document.getElementById('code');
+  box.addEventListener('input', function () {
+    var v = box.value; box.value = '';
+    try { setup = BT.api.decodeSetup(v); } catch (e) { document.getElementById('results').textContent = e.message; return; }
+    if (setup.env !== 'staging') { setup = null; document.getElementById('results').textContent = 'Refused: live tests run against staging only.'; return; }
+    setup.device = 'live-test';
+    document.getElementById('results').textContent = 'Running…';
+    box.disabled = true;
+    runTests();
+  });
+})();
+</script>
+</body>
+</html>

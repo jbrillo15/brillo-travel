@@ -8,7 +8,8 @@ suite('core', function () {
       d: d,
       get: function (s, k) { return Promise.resolve(d[s][k]); },
       put: function (s, k, v) { d[s][k] = JSON.parse(JSON.stringify(v)); return Promise.resolve(); },
-      del: function (s, k) { delete d[s][k]; return Promise.resolve(); }
+      del: function (s, k) { delete d[s][k]; return Promise.resolve(); },
+      all: function (s) { return Promise.resolve(Object.keys(d[s]).map(function (k) { return JSON.parse(JSON.stringify(d[s][k])); })); }
     };
   }
   function reply(obj, status) {
@@ -110,7 +111,7 @@ suite('core', function () {
     var store = memStore();
     return withFetch(function () { return reply(goodSnapshot()); }, function () {
       var s = makeSync(store);
-      return s.pull('open').then(function (snap) {
+      return s.sync('open').then(function (snap) {
         eq(s.status().state, 'synced');
         eq(store.d.snapshot.current.rev, 'r1');
         eq(store.d.snapshot.current.data.itinerary.length, 10);
@@ -128,7 +129,7 @@ suite('core', function () {
     var n = 0;
     return withFetch(function () { return reply(n++ ? second : first); }, function () {
       var s = makeSync(store);
-      return s.pull().then(function () { return s.pull(); }).then(function () {
+      return s.sync().then(function () { return s.sync(); }).then(function () {
         eq(store.d.snapshot.current.data.itinerary.length, 10, 'kept');
         deepEq(store.d.snapshot.current.staleTabs, ['itinerary']);
         eq(s.status().issues.errors, 1);
@@ -142,7 +143,7 @@ suite('core', function () {
     store.d.snapshot.current = { rev: 'old', data: { itinerary: [{ id: 'x' }] } };
     return withFetch(function () { return reply({ ok: true, api: 1, env: 'staging', echo: null }); }, function () {
       var s = makeSync(store);
-      return s.pull().then(function () {
+      return s.sync().then(function () {
         eq(store.d.snapshot.current.rev, 'old');
         eq(s.status().state, 'problem');
         ok(/without trip data/.test(s.status().error.message));
@@ -157,7 +158,7 @@ suite('core', function () {
     var n = 0;
     return withFetch(function () { return reply(n++ ? second : first); }, function () {
       var s = makeSync(store);
-      return s.pull().then(function () { return s.pull(); }).then(function () {
+      return s.sync().then(function () { return s.sync(); }).then(function () {
         eq(store.d.snapshot.current.data.hotels.length, 3);
         deepEq(store.d.snapshot.current.staleTabs, ['hotels']);
       });
@@ -170,7 +171,7 @@ suite('core', function () {
     var newer = goodSnapshot(); newer.api = BT.config.api + 1;
     return withFetch(function () { return reply(newer); }, function () {
       var s = makeSync(store);
-      return s.pull().then(function () {
+      return s.sync().then(function () {
         eq(store.d.snapshot.current.rev, 'old', 'plan kept');
         eq(s.status().state, 'incompatible');
         ok(/newer than this app/.test(s.status().error.message));
@@ -186,10 +187,10 @@ suite('core', function () {
     var n = 0;
     return withFetch(function () { return reply(n++ ? goodSnapshot() : older); }, function () {
       var s = makeSync(store);
-      return s.pull().then(function () {
+      return s.sync().then(function () {
         eq(store.d.snapshot.current, undefined, 'nothing stored from the mismatched reply');
         ok(/older than this app/.test(s.status().error.message));
-        return s.pull();
+        return s.sync();
       }).then(function () {
         eq(s.status().state, 'synced');
         eq(store.d.snapshot.current.rev, 'r1');
@@ -202,7 +203,7 @@ suite('core', function () {
     var prodReply = goodSnapshot(); prodReply.env = 'prod';
     return withFetch(function () { return reply(prodReply); }, function () {
       var s = makeSync(store);
-      return s.pull().then(function () { eq(store.d.snapshot.current, undefined); eq(s.status().state, 'problem'); });
+      return s.sync().then(function () { eq(store.d.snapshot.current, undefined); eq(s.status().state, 'problem'); });
     });
   });
 
@@ -212,7 +213,7 @@ suite('core', function () {
     return withFetch(function () { return Promise.reject(new TypeError('offline')); }, function () {
       var s = makeSync(store);
       var chain = Promise.resolve();
-      for (var i = 0; i < 5; i++) chain = chain.then(function () { return s.pull(); });
+      for (var i = 0; i < 5; i++) chain = chain.then(function () { return s.sync(); });
       return chain.then(function () {
         eq(s.status().state, 'offline');
         deepEq(s.scheduled, [2000, 5000, 15000, 60000, 60000]);
@@ -226,7 +227,7 @@ suite('core', function () {
     store.d.snapshot.current = { rev: 'old', data: {} };
     return withFetch(function () { return reply({ ok: false, api: 1, code: 'AUTH' }); }, function () {
       var s = makeSync(store);
-      return s.pull().then(function () {
+      return s.sync().then(function () {
         eq(s.status().state, 'setup');
         eq(store.d.snapshot.current.rev, 'old');
         eq(s.scheduled.length, 0, 'no retry loop on AUTH');
@@ -238,7 +239,7 @@ suite('core', function () {
     var calls = 0, release;
     return withFetch(function () { calls++; return new Promise(function (r) { release = function () { r(reply(goodSnapshot())); }; }); }, function () {
       var s = makeSync(memStore());
-      var a = s.pull(), b = s.pull();
+      var a = s.sync(), b = s.sync();
       ok(a === b, 'same promise');
       // fetch starts after an async storage read; wait for it before answering.
       function whenStarted() { return release ? Promise.resolve() : new Promise(function (r) { setTimeout(r, 5); }).then(whenStarted); }
@@ -248,7 +249,7 @@ suite('core', function () {
 
   test('no setup → status setup, no network', function () {
     var s = makeSync(memStore(), { getSetup: function () { return null; } });
-    return s.pull().then(function () { eq(s.status().state, 'setup'); });
+    return s.sync().then(function () { eq(s.status().state, 'setup'); });
   });
 
   test('sync line wording', function () {

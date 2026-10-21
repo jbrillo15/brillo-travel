@@ -43,6 +43,8 @@
         jobs.push(db.put('prefs', 'simulate', { offsetMs: at.getTime() - Date.now(), inputValue: when[0], label: when[0] }));
       }
       if (opts.snapshot !== null) jobs.push(db.put('snapshot', 'current', opts.snapshot || E2E.snapshot()));
+      (opts.outbox || []).forEach(function (op) { jobs.push(db.put('outbox', op.opId, op)); });
+      if (opts.prefs) Object.keys(opts.prefs).forEach(function (k) { jobs.push(db.put('prefs', k, opts.prefs[k])); });
       return Promise.all(jobs).then(function () { db.close(); });
     });
   };
@@ -69,6 +71,58 @@
       };
       frame.src = '../index.html?e2e=' + Date.now() + (hash || '#/today');
     });
+  };
+
+  // Checklists for the Lists scenarios: four lists, bags, one overdue Pre-trip item.
+  E2E.withLists = function (raw) {
+    var rows = raw.Checklists.values;
+    rows.splice(1, rows.length - 1,
+      ['ck_p1', 'Pre-trip', 'Fake booking', 'Both', '—', '2026-10-09', false, '', '', '', 10, '', false],
+      ['ck_p2', 'Pre-trip', 'Fake insurance', 'Jordan', '—', '2026-11-10', false, '', '', '', 20, '', false],
+      ['ck_k1', 'Packing', 'Fake passport', 'Jordan', 'Jordan backpack', '', true, 'Jordan', '', '', 30, '', false],
+      ['ck_k2', 'Packing', 'Fake charger', 'Lindsay', 'Lindsay backpack', '', false, '', '', '', 40, '', false],
+      ['ck_k3', 'Packing', 'Fake shoes', 'Both', 'Suitcase', '', false, '', '', '', 50, '', false],
+      ['ck_d1', 'Departure day', 'Fake checkout', 'Both', '—', '2026-11-26', false, '', '', '', 60, '', false],
+      ['ck_x1', 'Packing', 'Fake deleted', 'Both', 'Suitcase', '', false, '', '', '', 70, '', true]);
+  };
+  // A fake script that applies mutate ops to its own copy of the fixture sheet, so the
+  // next snapshot reflects them (enough of Code.gs's behavior for the UI round trip).
+  E2E.fakeScript = function (opts) {
+    opts = opts || {};
+    var calls = [];
+    var applied = [];
+    function reply(obj) { return Promise.resolve({ status: 200, text: function () { return Promise.resolve(JSON.stringify(obj)); } }); }
+    var fn = function (url, o) {
+      var body = JSON.parse(o.body);
+      calls.push(body);
+      if (body.action === 'mutate') {
+        return reply({ ok: true, api: 1, serverVersion: opts.serverVersion || '0.2.0', results: body.ops.map(function (op) {
+          var st = opts.status ? opts.status(op) : 'applied';
+          if (st === 'applied') applied.push(op);
+          return { opId: op.opId, status: st, reason: st === 'rejected' ? 'Not found in the sheet (fake)' : '' };
+        }) });
+      }
+      var snap = E2E.snapshot(function (raw) {
+        E2E.withLists(raw);
+        var H = raw.Checklists.values[0];
+        applied.forEach(function (op) {
+          var row = raw.Checklists.values.filter(function (r) { return r[0] === op.id; })[0];
+          if (!row) { row = H.map(function () { return ''; }); row[0] = op.id; row[6] = false; row[12] = false; raw.Checklists.values.push(row); }
+          var map = { list: 'List', item: 'Item', owner: 'Owner', bag: 'Bag', due: 'Due', done: 'Done', doneBy: 'Done by', notes: 'Notes', sort: 'Sort' };
+          Object.keys(op.fields).forEach(function (k) { if (map[k]) row[H.indexOf(map[k])] = op.fields[k]; });
+          if (op.type === 'checklist.delete') row[H.indexOf('Deleted')] = true;
+        });
+      });
+      snap.ok = true; snap.api = 1; snap.serverVersion = opts.serverVersion || '0.2.0'; snap.rev = 'fake-' + calls.length;
+      return reply(snap);
+    };
+    fn.calls = calls;
+    fn.actions = function () { return calls.map(function (c) { return c.action; }); };
+    return fn;
+  };
+  E2E.wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms || 80); }); };
+  E2E.outbox = function () {
+    return BT.store.open('staging').then(function (db) { return db.all('outbox').then(function (all) { db.close(); return all; }); });
   };
 
   E2E.text = function (w) { return w.document.getElementById('app').innerText; };

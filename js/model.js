@@ -27,8 +27,40 @@
     };
   }
 
-  function build(snapshot) {
-    var d = (snapshot && snapshot.data) || {};
+  // Local-first (HANDOFF §7): the screens show the snapshot with queued changes on
+  // top, marked pending. Rejected ops aren't shown; they wait in Sync issues.
+  var OP_TAB = { checklist: 'checklists', expense: 'expenses', idea: 'ideas', itinerary: 'itinerary' };
+  function applyOps(data, ops) {
+    if (!ops || !ops.length) return data;
+    var out = Object.assign({}, data);
+    var copied = {};
+    function rows(tab) {
+      if (!copied[tab]) { out[tab] = (out[tab] || []).map(function (r) { return Object.assign({}, r); }); copied[tab] = true; }
+      return out[tab];
+    }
+    ops.forEach(function (op) {
+      if (op.status === 'rejected') return;
+      var parts = String(op.type).split('.');
+      var tab = OP_TAB[parts[0]];
+      if (!tab || (data[tab] === null && parts[1] !== 'add' && parts[1] !== 'upsert')) return;
+      var list = rows(tab);
+      var row = list.filter(function (r) { return r.id === op.id; })[0];
+      var f = op.fields || {};
+      if (!row) {
+        if (parts[1] !== 'add' && parts[1] !== 'upsert') return;
+        row = { id: op.id, done: false, deleted: false };
+        list.push(row);
+      }
+      Object.keys(f).forEach(function (k) { row[k] = f[k]; });
+      if (parts[1] === 'delete') row.deleted = true;
+      if (tab === 'checklists' && 'done' in f) { row.doneAt = f.done ? op.clientUpdatedAt : ''; if (!f.done) row.doneBy = ''; }
+      if (op.status !== 'settled') row.pending = true;   // settled: in the sheet, not in the snapshot yet
+    });
+    return out;
+  }
+
+  function build(snapshot, ops) {
+    var d = applyOps((snapshot && snapshot.data) || {}, ops);
     var settings = settingsWithDefaults(d.settings);
     var legs = (d.transportation || []).map(function (l) {
       var o = Object.assign({}, l);
@@ -45,7 +77,7 @@
       byDate: byDate,
       hotels: (d.hotels || []).slice().sort(function (a, b) { return a.checkIn < b.checkIn ? -1 : 1; }),
       legs: legs,
-      checklists: d.checklists || [],
+      checklists: (d.checklists || []).filter(function (c) { return !c.deleted; }),
       phrases: d.phrases || [],
       issues: (snapshot && snapshot.issues) || [],
       staleTabs: (snapshot && snapshot.staleTabs) || [],
@@ -104,8 +136,46 @@
     return false;
   }
 
+  // ---------- checklists (HANDOFF §8.3) ----------
+  var LIST_ORDER = ['Pre-trip', 'Packing', 'Departure day', 'Return packing'];
+  function bySort(a, b) {
+    var sa = typeof a.sort === 'number' ? a.sort : 1e9, sb = typeof b.sort === 'number' ? b.sort : 1e9;
+    return sa - sb || (a.row || 1e9) - (b.row || 1e9);
+  }
+  function isOverdue(c, today) { return !c.done && !!c.due && c.due < today; }
+  function lists(vm, today) {
+    var by = {};
+    vm.checklists.forEach(function (c) { var n = c.list || 'Other'; (by[n] = by[n] || []).push(c); });
+    var names = Object.keys(by).sort(function (a, b) {
+      var ia = LIST_ORDER.indexOf(a), ib = LIST_ORDER.indexOf(b);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || (a < b ? -1 : 1);
+    });
+    return names.map(function (n) {
+      var items = by[n].slice().sort(bySort);
+      return { name: n, items: items, done: items.filter(function (c) { return c.done; }).length,
+        overdue: items.filter(function (c) { return isOverdue(c, today); }).length };
+    });
+  }
+  function listByName(vm, name, today) { return lists(vm, today).filter(function (l) { return l.name === name; })[0] || null; }
+  // Packing by bag (AC-L4). Bag names follow HANDOFF §5; "—" or blank is Unassigned.
+  var BAG_ORDER = ['Suitcase', 'Jordan backpack', 'Lindsay backpack'];
+  function byBag(items) {
+    var g = {};
+    items.forEach(function (c) { var b = c.bag && c.bag !== '—' ? c.bag : 'Unassigned'; (g[b] = g[b] || []).push(c); });
+    return Object.keys(g).sort(function (a, b) {
+      var ia = BAG_ORDER.indexOf(a), ib = BAG_ORDER.indexOf(b);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || (a < b ? -1 : 1);
+    }).map(function (b) { return { bag: b, items: g[b], done: g[b].filter(function (c) { return c.done; }).length }; });
+  }
+  function overduePreTrip(vm, today) {
+    return vm.checklists.filter(function (c) { return /^pre-trip$/i.test(c.list) && isOverdue(c, today); })
+      .sort(function (a, b) { return a.due < b.due ? -1 : 1; });
+  }
+  function nextSort(items) { return items.reduce(function (m, c) { return Math.max(m, typeof c.sort === 'number' ? c.sort : 0); }, 0) + 10; }
+
   BT.model = {
-    build: build, settingsWithDefaults: settingsWithDefaults,
+    build: build, applyOps: applyOps, lists: lists, listByName: listByName, byBag: byBag, isOverdue: isOverdue,
+    overduePreTrip: overduePreTrip, nextSort: nextSort, LIST_ORDER: LIST_ORDER, settingsWithDefaults: settingsWithDefaults,
     tonightHotel: tonightHotel, checkoutHotel: checkoutHotel, cityFor: cityFor,
     cityClass: knownCityClass, cityCode: cityCode, cityJa: cityJa, legsOn: legsOn, tripDays: tripDays,
     pict: pict, legPict: legPict, allergyCard: allergyCard, groupRef: groupRef, semverLess: semverLess

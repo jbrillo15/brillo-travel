@@ -75,6 +75,7 @@
           <div class="row-between"><span class="sync" data-state="${st.state}" data-sync>${st.text}</span>
             <button class="btn" type="button" data-action="sync-now">Sync now</button></div>
           <a class="info-row" href="#/health"><span>Data health</span><b>${issues.length ? issues.length + ' to check' : 'All clear'}</b></a>
+          ${S.status.rejected ? html`<a class="info-row" href="#/sync-issues"><span>Sync issues</span><b>${S.status.rejected} to review</b></a>` : ''}
         </section>
         <section class="settings-group">
           <div class="row-between"><span>Version <b class="num">${BT.config.version}</b> · ${S.env}${scriptVersion(S) ? html` · script <b class="num">${scriptVersion(S)}</b>` : ''}</span>
@@ -91,7 +92,7 @@
           <label class="field"><span class="eyebrow">Simulate Japan date and time</span>
             <input type="datetime-local" data-action="simulate-set" value="${sim ? sim.inputValue : ''}"></label>
           ${sim ? html`<p class="secondary">Simulating ${sim.label} (Japan). <button class="btn btn-quiet" type="button" data-action="simulate-clear">Use real time</button></p>` : ''}
-          <div class="row-between"><span class="secondary">Outbox: 0 changes (writes arrive in v0.2)</span></div>
+          <div class="row-between"><span class="secondary">Outbox: ${S.status.pending || 0} waiting · ${S.status.rejected || 0} refused</span></div>
           <button class="btn" type="button" data-action="reset-local">Reset local data</button>
         </section>` : ''}`
     };
@@ -106,7 +107,6 @@
 
   BT.ui.settings = { render: settings, setup: setup, health: health };
   BT.ui.placeholders = {
-    lists: placeholder('Lists', 'v0.2', 'Packing and pre-trip checklists, shared between both phones.'),
     budget: placeholder('Budget', 'v0.3', 'Daily spending, shopping and bookings, with a yen-to-dollar calculator.'),
     nearby: placeholder('Nearby', 'v0.4', 'Ideas near you and quick Google Maps searches.')
   };

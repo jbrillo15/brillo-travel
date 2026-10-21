@@ -35,14 +35,32 @@
     return {
       setValues: function (vals) {
         STUB.writes.push({ tab: sh.name, row: row, col: col, n: vals.length, locked: STUB.lockHeld });
-        for (var i = 0; i < (nRows || 1); i++) for (var j = 0; j < (nCols || 1); j++) sh.rows[row - 1 + i][col - 1 + j] = vals[i][j];
+        var width = sh.rows[0] ? sh.rows[0].length : 0;
+        for (var i = 0; i < (nRows || 1); i++) {
+          // Writing past the last row grows the tab, like the real sheet's empty rows below the data.
+          while (sh.rows.length < row + i) { var blank = []; for (var b = 0; b < width; b++) blank.push(''); sh.rows.push(blank); }
+          for (var j = 0; j < (nCols || 1); j++) {
+            var v = vals[i][j];
+            STUB.raw.push({ tab: sh.name, row: row + i, col: col + j, value: v });   // exactly what the script sent
+            // A leading apostrophe makes the sheet store text; getValues returns it without one.
+            if (typeof v === 'string' && v.charAt(0) === "'") { v = v.slice(1); STUB.textWrites = (STUB.textWrites || 0) + 1; }
+            sh.rows[row - 1 + i][col - 1 + j] = v;
+          }
+        }
       },
       setValue: function (v) { this.setValues([[v]]); if (STUB.onWrite) STUB.onWrite(sh.name, row, col); },
       getValue: function () { return sh.rows[row - 1][col - 1]; }
     };
   };
 
+  Sheet.prototype.getMaxRows = function () { return Math.max(this.rows.length, STUB.maxRows || 0); };
+  Sheet.prototype.insertRowsAfter = function (after, n) { STUB.inserted = (STUB.inserted || 0) + n; STUB.maxRows = after + n; };
+
   STUB.reset = function (tabs, props) {
+    STUB.maxRows = 0;
+    STUB.inserted = 0;
+    STUB.textWrites = 0;
+    STUB.raw = [];
     STUB.writes = [];
     STUB.lockBusy = false;
     STUB.lockHeld = false;

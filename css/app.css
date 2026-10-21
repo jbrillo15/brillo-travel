@@ -641,3 +641,30 @@ h1, h2, h3, .display, .topbar .greeting, .nn-title, .hotel .name, .idea .name, .
 .app[data-enter] .topbar, .app[data-enter] .content { animation: rise 0.32s ease-out both; }
 .app[data-enter] .content { animation-delay: 0.04s; }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+
+/* ---------- Lists (v0.2, HANDOFF §8.3; DESIGN §6 #6) ---------- */
+/* Overview rows reuse the day-row card: neutral tile, name, progress, a mint meter (done) */
+.list-row .day-main { display: grid; gap: 4px; min-width: 0; }
+.list-name { font: 600 var(--fs-title-3)/1.2 var(--font-display); }
+.list-row .meter { height: 6px; margin-top: 4px; }
+.overdue { color: var(--close); font-weight: 600; }
+.issue-row { margin-bottom: var(--sp-3); }
+
+/* Checklist card: rows on a flat panel; the chevron edits, the rest of the row toggles */
+.check-card { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-card); padding: 0 var(--sp-2) 0 var(--sp-1); }
+.check { grid-template-columns: var(--tap) 1fr var(--tap); gap: var(--sp-1); }
+.check .label { overflow-wrap: anywhere; }
+.check .meta.note { color: var(--text-2); }
+.check .pending { font-style: italic; }
+.check-edit { color: var(--text-3); font-size: 1.6rem; min-height: var(--tap); }
+.bag-group { display: grid; gap: var(--sp-2); }
+.bag-group .bag-head { padding-top: 0; }
+
+/* By bag / All items: two signage keys, the chosen one in the light (primary) fill */
+.segmented { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+.segmented .btn[aria-pressed="true"] { background: var(--text); border-color: var(--text); color: var(--on-fill); }
+
+.add-item, .edit-item { margin-top: var(--sp-2); }
+.section-link { text-decoration: none; display: inline-flex; align-items: center; min-height: var(--tap); }
+.btn.delete { justify-self: start; }
+.issues .actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-2); }

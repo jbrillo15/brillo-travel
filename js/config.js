@@ -5,8 +5,11 @@
   var BT = window.BT = window.BT || {};
 
   BT.config = {
-    version: '0.1.4',
+    version: '0.2.0',
     api: 1,
+    minServerForWrites: '0.2.0',  // older scripts have no mutate; changes wait on the phone
+    maxOpsPerPush: 50,
+    pushDebounceMs: 2000,         // sync 2 s after a local change (HANDOFF §7)
     requestTimeoutMs: 20000,
     autoSyncMs: 5 * 60 * 1000,
     tripTz: 'Asia/Tokyo',        // D10: all trip logic runs in Japan time

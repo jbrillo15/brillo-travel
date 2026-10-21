@@ -368,6 +368,6 @@
     TABS: TABS, SLOT_NAMES: SLOT_NAMES, KINDS: KINDS,
     isIsoDate: isIsoDate, addDays: addDays, parseTime: parseTime, parseDate: parseDate, parseMoney: parseMoney,
     parseNumber: parseNumber, parseBool: parseBool, splitList: splitList, pick: pick, validTz: validTz,
-    headerIndex: headerIndex, snapshot: snapshot
+    headerIndex: headerIndex, norm: norm, snapshot: snapshot
   };
 })(typeof window !== 'undefined' ? window : globalThis);

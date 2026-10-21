@@ -37,8 +37,10 @@
     var s = vm.settings;
     var home = T.dateIn(now, s.homeTz);
     var days = s.tripStart ? T.daysBetween(home, s.tripStart) : null;
-    var pre = vm.checklists.filter(function (c) { return /^pre-trip$/i.test(c.list) && !c.done && !c.deleted; })
-      .sort(function (a, b) { return (a.due || '9999') < (b.due || '9999') ? -1 : 1; }).slice(0, 5);
+    // Overdue first, then by due date (AC-L3); tick them right here.
+    var open = vm.checklists.filter(function (c) { return /^pre-trip$/i.test(c.list) && !c.done; })
+      .sort(function (a, b) { return (a.due || '9999') < (b.due || '9999') ? -1 : 1; });
+    var pre = { items: open.slice(0, 5), total: open.length };
     var bags = {};
     vm.checklists.filter(function (c) { return /^packing$/i.test(c.list) && !c.deleted; }).forEach(function (c) {
       var b = c.bag && c.bag !== '—' ? c.bag : 'Unassigned';
@@ -55,13 +57,10 @@
           <div class="display num">${days === null ? '—' : days}</div>
           <div class="secondary">${days === null ? 'Add the trip dates in Settings (sheet)' : days === 1 ? 'day to go' : 'days to go'}${s.tripStart ? ' · leaving ' + T.fmtDay(s.tripStart) : ''}</div>
         </div>
-        <section><div class="section-title"><h2>Before you go</h2><span class="secondary">${pre.length ? 'Next ' + pre.length : ''}</span></div>
-          ${pre.length ? html`<ul class="plain-list">${pre.map(function (c) {
-            var overdue = c.due && c.due < home;
-            return html`<li><span>${c.item}</span><span class="meta ${overdue ? 'overdue' : ''}">${c.owner || ''}${c.due ? ' · ' + (overdue ? 'Overdue, ' : 'Due ') + T.fmtDay(c.due) : ''}</span></li>`;
-          })}</ul>` : html`<p class="empty">Nothing due. Checklists arrive in the app in v0.2.</p>`}
+        <section><div class="section-title"><h2>Before you go</h2><a class="secondary section-link" href="#/list/Pre-trip">${pre.total ? 'All ' + pre.total : 'Pre-trip'} ›</a></div>
+          ${pre.items.length ? html`<ul class="checks check-card">${pre.items.map(function (c) { return BT.ui.lists.row(c, home); })}</ul>` : html`<p class="empty">Nothing left to do before the trip.</p>`}
         </section>
-        ${Object.keys(bags).length ? html`<section><div class="section-title"><h2>Packing</h2></div><ul class="plain-list">${Object.keys(bags).map(function (b) {
+        ${Object.keys(bags).length ? html`<section><div class="section-title"><h2>Packing</h2><a class="secondary section-link" href="#/list/Packing">Open ›</a></div><ul class="plain-list">${Object.keys(bags).map(function (b) {
           return html`<li><span>${b}</span><span class="meta num">${bags[b].done} of ${bags[b].total} packed</span></li>`;
         })}</ul></section>` : ''}
         ${toBook.length ? html`<section><div class="section-title"><h2>Still to book</h2></div><ul class="plain-list">${toBook.map(function (x) {
@@ -97,6 +96,7 @@
     var tonight = M.tonightHotel(vm, day);
     var out = M.checkoutHotel(vm, day);
     var legs = M.legsOn(vm, day);
+    var overdue = M.overduePreTrip(vm, day);
     var hour = T.partsIn(now, s.tripTz).hh;
     var line = (n ? 'Day ' + n.n + ' of ' + n.total + ' · ' : '') + city;
     return {
@@ -104,6 +104,8 @@
       header: header(D.dayBadge(city, n && n.n), line, greeting(S.owner, hour)),
       body: html`
         ${nowNextCard(nn)}
+        ${overdue.length ? html`<section><div class="section-title"><h2>Overdue from before the trip</h2><a class="secondary section-link" href="#/list/Pre-trip">Pre-trip ›</a></div>
+          <ul class="checks check-card">${overdue.map(function (c) { return BT.ui.lists.row(c, day); })}</ul></section>` : ''}
         ${legs.length ? html`<section><div class="section-title"><h2>Travel today</h2></div>${P.legList(legs)}</section>` : ''}
         <section><div class="section-title"><h2>${nn.now || nn.next ? 'Rest of today' : 'Today'}</h2><span class="secondary">${items.length} ${items.length === 1 ? 'stop' : 'stops'}</span></div>
           ${P.line(items, { now: nn.now })}</section>
