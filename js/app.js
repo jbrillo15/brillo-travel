@@ -219,12 +219,21 @@
     });
   }
   function findCheck(id) { return S.vm.checklists.filter(function (c) { return c.id === id; })[0]; }
-  function toggleCheck(id) {
+  function toggleCheck(id, rowEl) {
     var c = findCheck(id);
     if (!c) return;
     var fields = { done: !c.done };
     if (!c.done) fields.doneBy = S.owner || '';
-    change('checklist.update', id, fields);
+    // Ticking: the ticker's face pops up from the box; the last open item of a list gets the big one.
+    var l = c.done ? null : BT.model.listByName(S.vm, c.list, BT.ui.lists.today(S.vm));
+    var finishing = l && l.items.length > 1 && l.done === l.items.length - 1;
+    change('checklist.update', id, fields).then(function (op) {
+      if (!op || c.done) return;
+      if (finishing) { BT.ui.cheer.listDone(l.name); return; }
+      // Measured after the redraw: a new banner can push the row down.
+      var box = document.querySelector('.check[data-id="' + CSS.escape(id) + '"] .box') || (rowEl && rowEl.querySelector('.box'));
+      if (box && box.isConnected) BT.ui.cheer.pop(S.owner, box.getBoundingClientRect());
+    });
   }
   function addCheck(form) {
     var name = form.getAttribute('data-list');
@@ -272,7 +281,7 @@
     if (a === 'nav') return;                      // a plain link inside a tappable row
     if (a === 'toggle-check') {
       ev.preventDefault();
-      toggleCheck(el.getAttribute('data-id'));
+      toggleCheck(el.getAttribute('data-id'), el.closest('.check'));
     } else if (a === 'pack-view') {
       S.packView = el.getAttribute('data-view') === 'all' ? 'all' : 'bag';
       S.db.put('prefs', 'packView', S.packView).catch(function () {});

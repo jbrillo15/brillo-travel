@@ -47,9 +47,10 @@
 
   function row(c, day) {
     var meta = [];
-    if (c.owner) meta.push(c.owner);
+    // Done rows show who ticked it; open rows show whose job it is.
+    if (c.done && c.doneBy) meta.push(html`<span class="who-chip">${D.avatar(c.doneBy, 'chip-face')}Done by ${c.doneBy}</span>`);
+    else if (c.owner) meta.push(html`<span class="who-chip">${D.avatar(c.owner, 'chip-face')}${c.owner}</span>`);
     if (c.due) meta.push(M.isOverdue(c, day) ? html`<span class="overdue">Overdue · ${T.fmtDay(c.due)}</span>` : 'Due ' + T.fmtDay(c.due));
-    if (c.done && c.doneBy) meta.push('Done by ' + c.doneBy);
     if (c.pending) meta.push(html`<span class="pending">Waiting to sync</span>`);
     var parts = [];
     meta.forEach(function (m, i) { if (i) parts.push(' · '); parts.push(m); });

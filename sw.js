@@ -12,8 +12,9 @@ var SHELL = [
   './', './index.html', './manifest.webmanifest', './css/app.css',
   './js/config.js', './js/parse.js', './js/time.js', './js/store.js', './js/api.js', './js/sync.js',
   './js/links.js', './js/model.js', './js/ui/dom.js', './js/ui/parts.js', './js/ui/today.js',
-  './js/ui/trip.js', './js/ui/lists.js', './js/ui/cards.js', './js/ui/info.js', './js/ui/settings.js', './js/app.js',
-  './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png'
+  './js/ui/trip.js', './js/ui/lists.js', './js/ui/cards.js', './js/ui/info.js', './js/ui/settings.js', './js/ui/cheer.js', './js/app.js',
+  './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png',
+  './art/couple.jpg', './art/jordan.jpg', './art/lindsay.jpg', './art/penny.jpg'
 ];
 
 self.addEventListener('install', function (e) {
