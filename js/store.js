@@ -85,11 +85,14 @@
     return /\/brillo-travel\//.test(path || '') && !/staging/.test(path) ? 'prod' : 'staging';
   }
   function activeEnv() {
+    var site = envFromPath(window.location.pathname);
     try {
+      // A pointer that disagrees with the site (saved before codes were tied to their
+      // site) is ignored, so the test app can't stay connected to the real sheet.
       var v = window.localStorage.getItem(POINTER);
-      if (v === 'staging' || v === 'prod') return v;
+      if (v === site) return v;
     } catch (e) { /* storage blocked: fall through */ }
-    return envFromPath(window.location.pathname);
+    return site;
   }
   function setActiveEnv(env) {
     try { window.localStorage.setItem(POINTER, env); } catch (e) { /* the path default still works */ }

@@ -85,6 +85,10 @@
       <nav class="tabbar" aria-label="Main">${TABS.map(function (t) {
         return html`<a class="tab" href="#/${t[0]}"${r.tab === t[0] ? D.raw(' aria-current="page"') : ''}>${D.icon(t[2])}${t[1]}</a>`;
       })}</nav>`);
+    // Remember what the edit form showed, so Save sends only what the person changed
+    // (not the gap between the form and newer data, or a cell the form can't show).
+    var ef = root.querySelector('form[data-action="save-check"]');
+    if (ef) Array.prototype.forEach.call(ef.elements, function (el) { if (el.name) el.setAttribute('data-orig', el.value); });
     renderSheet();
   }
   BT.app.render = function () { render(); };
@@ -97,6 +101,9 @@
     deferred = false;
     if (route().name !== 'check') render();
   }   // E2E: redraw after setting state directly
+  // An open edit form is never redrawn by a sync: unsaved text would vanish (ship-check
+  // 2026-10-21). It redraws when the person saves or leaves.
+  function holdRender() { return typing() || !!document.querySelector('form[data-action="save-check"]'); }
   function typing() { return !!(document.activeElement && /TEXTAREA|INPUT|SELECT/.test(document.activeElement.tagName)); }
   function renderSyncOnly() {
     var st = BT.sync.describe(S.status, T.now());
@@ -170,14 +177,14 @@
         // needed); offline or a failed sync says nothing about whether it now matches.
         if (st.state === 'incompatible') S.incompatible = st.error && st.error.message || 'The app and the sheet\'s script don\'t match.';
         else if (st.state === 'synced' || st.state === 'setup') S.incompatible = null;
-        var bannerChanged = wasIncompatible !== S.incompatible && !typing();   // shows on the next render instead
+        var bannerChanged = wasIncompatible !== S.incompatible && !holdRender();   // shows on the next render instead
         if (st.state === 'synced') {
           S.db.get('snapshot', 'current').then(function (snap) {
-            if (snap && (snap.rev !== prevRev || queueChanged)) { applySnapshot(snap); typing() ? deferRender() : render(); }
+            if (snap && (snap.rev !== prevRev || queueChanged)) { applySnapshot(snap); holdRender() ? deferRender() : render(); }
             else if (bannerChanged) render(); else renderSyncOnly();
           });
-        } else if (queueChanged) { applySnapshot(S.snapshot); typing() ? deferRender() : render(); }
-        else if (st.state === 'setup' || bannerChanged) render();
+        } else if (queueChanged) { applySnapshot(S.snapshot); holdRender() ? deferRender() : render(); }
+        else if ((st.state === 'setup' && !holdRender()) || bannerChanged) render();
         else renderSyncOnly();
       });
       return Promise.all([S.sync.load(), S.db.get('prefs', 'packView')]);
@@ -196,6 +203,15 @@
   function savePasted(text) {
     var setup;
     try { setup = BT.api.decodeSetup(text); } catch (e) { S.setupError = e.message; render(); return; }
+    // A code only works on its own site: the test app never connects to the real sheet,
+    // and the real-trip app never to the test sheet (ship-check 2026-10-21).
+    var site = BT.store.envFromPath(location.pathname);
+    if (setup.env !== site) {
+      S.setupError = site === 'staging'
+        ? 'This is the test app (STAGING). That code is for the real trip app. Open the other Brillo icon and paste it there.'
+        : 'This is the real trip app. That code is for the test app (STAGING). Ask Jordan for the real trip code.';
+      render(); return;
+    }
     S.setupError = null;
     var switching = setup.env !== S.env;
     BT.store.setActiveEnv(setup.env);
@@ -228,7 +244,8 @@
   }
   function addCheck(form) {
     var name = form.getAttribute('data-list');
-    var item = (form.elements.item.value || '').trim();
+    // namedItem: on a form's elements list, .item is the built-in item() method, not the field (ship-check 2026-10-21).
+    var item = (form.elements.namedItem('item').value || '').trim();
     if (!item) return;
     var l = BT.model.listByName(S.vm, name, BT.ui.lists.today(S.vm));
     var fields = { list: name, item: item, owner: 'Both', sort: BT.model.nextSort(l ? l.items : []) };
@@ -243,15 +260,23 @@
   function saveCheck(form) {
     var id = form.getAttribute('data-id');
     var c = findCheck(id);
-    if (!c) return;
+    if (!c) {
+      // Deleted on the other phone while this form was open (the form isn't redrawn by a sync).
+      S.saveError = 'This item was deleted from the list (on the other phone or in the sheet), so the change wasn\'t saved.';
+      location.hash = '#/lists';
+      return;
+    }
     var fields = {};
     ['item', 'owner', 'bag', 'due', 'notes'].forEach(function (k) {
-      if (!form.elements[k]) return;
-      var v = form.elements[k].value;
-      if (k === 'item') v = v.trim();
-      if (k === 'bag' && !v) v = '—';
+      var el = form.elements.namedItem(k);
+      if (!el) return;
+      var v = el.value;
+      var orig = el.getAttribute('data-orig');
+      if (orig === null) orig = c[k] || '';
+      if (k === 'item') { v = v.trim(); orig = orig.trim(); }
+      if (k === 'bag') { v = v || '—'; orig = orig || '—'; }
       if (k === 'item' && !v) return;
-      if (v !== (c[k] || (k === 'bag' ? '—' : ''))) fields[k] = v;
+      if (v !== orig) fields[k] = v;
     });
     var back = '#/list/' + encodeURIComponent(c.list);
     if (!Object.keys(fields).length) { location.hash = back; return; }
@@ -374,7 +399,7 @@
   var timer = null;
   function startTriggers() {
     document.addEventListener('visibilitychange', function () {
-      if (document.visibilityState === 'visible') { render(); S.sync.sync('foreground'); }   // EC-04: re-derive "today"
+      if (document.visibilityState === 'visible') { if (!holdRender()) render(); S.sync.sync('foreground'); }   // EC-04: re-derive "today" (an open edit form keeps its text)
       else S.sync.stopRetry();
     });
     window.addEventListener('online', function () { S.sync.sync('online'); });

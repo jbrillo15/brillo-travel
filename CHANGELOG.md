@@ -4,6 +4,17 @@ Versions follow semantic versioning. 0.x during the build; 1.0.0 is the trip
 release. The version here must match `js/config.js` and the service worker
 cache name (a unit test checks this).
 
+## 0.2.1 (staging)
+
+Fixes from the Oct 21 production-readiness check, before the first PROD release.
+
+- **Adding a list item and saving an edit work again.** Add item did nothing and Save on the edit screen did nothing, on every browser. The tests filled the field in a way that hid it; they now type into the real fields.
+- **A setup code only works on its own site.** The test app (STAGING) refuses the real-trip code and says to open the other Brillo icon, and the real-trip app refuses a test code, so test builds can never write to the real sheet. A pointer saved before this change is ignored.
+- **The edit screen keeps what you typed.** A background sync, or switching to another app and back, no longer redraws the form and loses unsaved text.
+- If the item was deleted on the other phone while its edit screen was open, Save now says so instead of doing nothing.
+- **Save sends only what you changed.** It no longer sends back an older name when the other phone renamed the item meanwhile, and no longer blanks an owner, bag or due date the form can't show.
+- Script 0.2.1: a change is refused (it shows under Sync issues) when a column it writes is missing or renamed, instead of being dropped while reporting success. Before writing, the script re-checks that the row still holds the item's ID, and checks again between the parts of one change, so someone sorting the tab at that moment can't put it on the wrong row. Only the changed cells are written.
+
 ## 0.2.0 (staging)
 
 - **Lists:** the Pre-trip, Packing, Departure day and Return packing checklists from the sheet, shared by both phones. Tap a row to tick it; add items, edit owner, bag, due date and notes, or delete one (it stays in the sheet, marked Deleted). Packing can be grouped by bag with a count per bag. Overdue items are marked in amber, and overdue Pre-trip items show on Today, where they can be ticked.

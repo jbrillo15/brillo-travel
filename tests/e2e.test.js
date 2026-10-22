@@ -341,7 +341,7 @@ suite('e2e', function () {
   test('add, edit and delete an item: each shows at once and is queued for the sheet', function () {
     return E2E.seed({ pt: '2026-10-20T09:00', snapshot: listSnap() }).then(function () { return E2E.load('#/list/Departure%20day'); }).then(function (w) {
       var form = w.document.querySelector('form[data-action="add-check"]');
-      form.elements.item.value = 'Fake new item';
+      form.elements.namedItem('item').value = 'Fake new item';   // the real input; .item is the collection's method
       form.dispatchEvent(new w.Event('submit', { bubbles: true, cancelable: true }));
       var id;
       return E2E.wait(150).then(function () {
@@ -457,6 +457,124 @@ suite('e2e', function () {
         eq(w.BT.app.state.updating, true, 'reloads when the new worker takes control');
         return E2E.outbox();
       }).then(function (ops) { eq(ops.length, 1, 'the queued change is still on the phone'); });
+    });
+  });
+
+  // ---------- ship-check 2026-10-21 regressions ----------
+  function reply(obj) { return Promise.resolve({ status: 200, text: function () { return Promise.resolve(JSON.stringify(obj)); } }); }
+  function lastOp(ops) { return ops.sort(function (a, b) { return a.seq - b.seq; })[ops.length - 1]; }
+
+  test('add and edit work through the real form fields (form.elements.item is a method, not the input)', function () {
+    return E2E.seed({ pt: '2026-10-20T09:00', snapshot: listSnap() }).then(function () { return E2E.load('#/list/Pre-trip'); }).then(function (w) {
+      eq(typeof w.document.querySelector('form[data-action="add-check"]').elements.item, 'function', 'the trap this guards');
+      var input = w.document.querySelector('form[data-action="add-check"] input[name="item"]');
+      input.value = '  Rail pass  ';
+      return E2E.click(w, 'form[data-action="add-check"] button[type="submit"]').then(function () { return E2E.wait(150); }).then(function () {
+        has(w, /Rail pass/);
+        return E2E.go(w, '#/check/ck_p1');
+      }).then(function () {
+        w.document.querySelector('form[data-action="save-check"] input[name="item"]').value = 'Fake task, renamed';
+        return E2E.click(w, 'form[data-action="save-check"] button[type="submit"]');
+      }).then(function () { return E2E.wait(150); }).then(function () {
+        ok(/#\/list\/Pre-trip/.test(w.location.hash), 'Save went back to the list');
+        return E2E.outbox();
+      }).then(function (ops) {
+        var add = ops.filter(function (o) { return o.type === 'checklist.add'; })[0];
+        ok(add, 'add queued'); eq(add.fields.item, 'Rail pass', 'trimmed');
+        deepEq(lastOp(ops).fields, { item: 'Fake task, renamed' }, 'only the name changed');
+      });
+    });
+  });
+
+  test('a setup code for the other site is refused in plain words, and the app stays put', function () {
+    return E2E.seed({ setup: false, snapshot: null }).then(function () { return E2E.load(); }).then(function (w) {
+      var code = btoa(JSON.stringify({ env: 'prod', apiUrl: 'https://script.google.com/macros/s/AKfakePROD/exec', token: 'p'.repeat(43) }));
+      var ta = w.document.querySelector('textarea[data-action="paste-setup"]');
+      ta.value = code;
+      ta.dispatchEvent(new w.Event('input', { bubbles: true }));
+      return E2E.wait(300).then(function () {
+        has(w, /This is the test app \(STAGING\)/);
+        has(w, /Welcome to Brillo/, 'still on setup');
+        ok(w.document.querySelector('.staging-ribbon'), 'ribbon still shows');
+        ok(!Object.keys(w.localStorage).some(function (k) { return k.indexOf('brillo.env') === 0 && w.localStorage.getItem(k) === 'prod'; }), 'no prod pointer saved');
+        ok(!/pppppppppp/.test(w.document.documentElement.outerHTML), 'token never in the page');
+      });
+    });
+  });
+
+  test('a saved pointer to the other env (from before codes were tied to their site) is ignored', function () {
+    return E2E.seed({ pt: '2026-10-20T09:00', snapshot: listSnap() }).then(function () {
+      localStorage.setItem('brillo.env:/app/', 'prod');
+      return E2E.load('#/lists');
+    }).then(function (w) {
+      ok(w.document.querySelector('.staging-ribbon'), 'still the staging app');
+      has(w, /Pre-trip/, 'its own saved data');
+    }).finally(function () { localStorage.removeItem('brillo.env:/app/'); });
+  });
+
+  test('Save sends only what the person changed, even when the sheet holds values the form cannot show', function () {
+    var snap = E2E.snapshot(function (raw) {
+      E2E.withLists(raw);
+      var H = raw.Checklists.values[0];
+      var row = raw.Checklists.values.filter(function (r) { return r[0] === 'ck_p1'; })[0];
+      row[H.indexOf('Owner')] = 'Grandma';             // not one of the dropdown choices
+      row[H.indexOf('Bag')] = 'Carry-on tote';
+    });
+    return E2E.seed({ pt: '2026-10-20T09:00', snapshot: snap }).then(function () { return E2E.load('#/check/ck_p1'); }).then(function (w) {
+      w.document.querySelector('form[data-action="save-check"] textarea[name="notes"]').value = 'just a note';
+      return E2E.click(w, 'form[data-action="save-check"] button[type="submit"]').then(function () { return E2E.wait(150); })
+        .then(function () { return E2E.outbox(); })
+        .then(function (ops) { deepEq(lastOp(ops).fields, { notes: 'just a note' }, 'owner, bag and due untouched'); });
+    });
+  });
+
+  test('newer data arriving while the edit form is open: unsaved text stays, and Save does not undo the other phone', function () {
+    var renamed = E2E.snapshot(function (raw) {
+      E2E.withLists(raw);
+      var H = raw.Checklists.values[0];
+      raw.Checklists.values.filter(function (r) { return r[0] === 'ck_p1'; })[0][H.indexOf('Item')] = 'Fake task + visa copy';
+    });
+    renamed.ok = true; renamed.api = 1; renamed.serverVersion = '0.2.1'; renamed.rev = 'renamed';
+    var w;
+    return E2E.seed({ pt: '2026-10-20T09:00', snapshot: listSnap() }).then(function () { return E2E.load('#/check/ck_p1'); }).then(function (win) {
+      w = win;
+      var notes = w.document.querySelector('form[data-action="save-check"] textarea[name="notes"]');
+      notes.value = 'typed, not saved yet';
+      notes.blur();
+      w.BT.api.fetch = function () { return reply(renamed); };
+      w.dispatchEvent(new w.Event('online'));                  // a background sync
+      return E2E.wait(500);
+    }).then(function () {
+      eq(w.document.querySelector('form[data-action="save-check"] textarea[name="notes"]').value, 'typed, not saved yet', 'unsaved text kept');
+      w.document.dispatchEvent(new w.Event('visibilitychange'));   // coming back from another app
+      return E2E.wait(300);
+    }).then(function () {
+      eq(w.document.querySelector('form[data-action="save-check"] textarea[name="notes"]').value, 'typed, not saved yet', 'kept after returning to the app');
+      return E2E.click(w, 'form[data-action="save-check"] button[type="submit"]');
+    }).then(function () { return E2E.wait(150); }).then(function () { return E2E.outbox(); }).then(function (ops) {
+      deepEq(lastOp(ops).fields, { notes: 'typed, not saved yet' }, 'the old name is not sent back');
+    });
+  });
+
+  test('Save on an item deleted meanwhile says so instead of doing nothing', function () {
+    var gone = E2E.snapshot(function (raw) {
+      E2E.withLists(raw);
+      var H = raw.Checklists.values[0];
+      raw.Checklists.values.filter(function (r) { return r[0] === 'ck_p1'; })[0][H.indexOf('Deleted')] = true;
+    });
+    gone.ok = true; gone.api = 1; gone.serverVersion = '0.2.1'; gone.rev = 'gone';
+    var w;
+    return E2E.seed({ pt: '2026-10-20T09:00', snapshot: listSnap() }).then(function () { return E2E.load('#/check/ck_p1'); }).then(function (win) {
+      w = win;
+      w.BT.api.fetch = function () { return reply(gone); };
+      w.dispatchEvent(new w.Event('online'));
+      return E2E.wait(500);
+    }).then(function () {
+      w.document.querySelector('form[data-action="save-check"] textarea[name="notes"]').value = 'too late';
+      return E2E.click(w, 'form[data-action="save-check"] button[type="submit"]');
+    }).then(function () { return E2E.wait(200); }).then(function () {
+      has(w, /was deleted from the list/);
+      ok(/#\/lists/.test(w.location.hash), 'back on Lists');
     });
   });
 });

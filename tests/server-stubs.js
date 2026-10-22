@@ -47,6 +47,28 @@
             sh.rows[row - 1 + i][col - 1 + j] = v;
           }
         }
+        if (STUB.onSetValues) STUB.onSetValues(sh.name, row, col);
+      },
+      getValues: function () {
+        var out = [];
+        for (var i = 0; i < (nRows || 1); i++) {
+          var r = sh.rows[row - 1 + i] || [];
+          var line = [];
+          for (var j = 0; j < (nCols || 1); j++) line.push(r[col - 1 + j] === undefined ? '' : r[col - 1 + j]);
+          out.push(line);
+        }
+        return out;
+      },
+      // A cell holds a formula when the test stores it as { formula: '=…' } in STUB.formulas[tab][row][col].
+      getFormulas: function () {
+        var f = (STUB.formulas && STUB.formulas[sh.name]) || {};
+        var out = [];
+        for (var i = 0; i < (nRows || 1); i++) {
+          var line = [];
+          for (var j = 0; j < (nCols || 1); j++) line.push((f[row + i] && f[row + i][col + j]) || '');
+          out.push(line);
+        }
+        return out;
       },
       setValue: function (v) { this.setValues([[v]]); if (STUB.onWrite) STUB.onWrite(sh.name, row, col); },
       getValue: function () { return sh.rows[row - 1][col - 1]; }
@@ -66,6 +88,8 @@
     STUB.lockHeld = false;
     STUB.lockReleased = 0;
     STUB.onWrite = null;
+    STUB.onSetValues = null;
+    STUB.formulas = null;
     STUB.sheets = {};
     Object.keys(tabs).forEach(function (name) {
       var t = tabs[name];

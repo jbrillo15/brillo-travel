@@ -44,7 +44,7 @@ suite('server', function () {
   test('snapshot: response shape (HANDOFF §6)', function () {
     STUB.reset(tabs());
     var r = snap();
-    eq(r.ok, true); eq(r.api, 1); eq(r.serverVersion, '0.2.0'); eq(r.env, 'staging');
+    eq(r.ok, true); eq(r.api, 1); eq(r.serverVersion, '0.2.1'); eq(r.env, 'staging');
     ok(/^[0-9a-f]{16}$/.test(r.rev), 'rev hex');
     ok(!isNaN(Date.parse(r.generatedAt)));
     deepEq(Object.keys(r.data).sort(), ['checklists', 'expenses', 'hotels', 'ideas', 'itinerary', 'phrases', 'settings', 'transportation']);
@@ -190,7 +190,7 @@ suite('server', function () {
   test('mutate: checklist.update ticks the row, fills Done by / Done at / Updated at, and logs it', function () {
     STUB.reset(tabs());
     var r = mutate([op('checklist.update', 'ck_1', { done: true, doneBy: 'Lindsay' }, at(1))]);
-    eq(r.ok, true); eq(r.api, 1); eq(r.serverVersion, '0.2.0');
+    eq(r.ok, true); eq(r.api, 1); eq(r.serverVersion, '0.2.1');
     eq(r.results.length, 1);
     eq(r.results[0].status, 'applied');
     eq(r.results[0].serverUpdatedAt, at(1));
@@ -358,6 +358,61 @@ suite('server', function () {
     eq(cell('Itinerary', 'it_a1', 'Done'), true);
     eq(cell('Itinerary', 'it_a1', 'Updated'), at(1));
     eq(mutate([op('itinerary.setDone', 'it_a1', { title: 'x' }, at(2))]).results[0].status, 'rejected', 'only Done can change');
+  });
+
+  // Ship-check 2026-10-21: a renamed header used to drop the value while reporting "applied".
+  test('a renamed column: the op is refused naming the header, and nothing is written', function () {
+    function renamed(from, to) {
+      STUB.reset(tabs(function (t) { var h = t.Checklists.values[0]; h[h.indexOf(from)] = to; }));
+    }
+    renamed('Done', 'Done?');
+    var r = mutate([op('checklist.update', 'ck_1', { done: true, doneBy: 'Jordan' }, at(1))]);
+    eq(r.results[0].status, 'rejected');
+    ok(/"Done"/.test(r.results[0].reason), r.results[0].reason);
+    eq(cell('Checklists', 'ck_1', 'Done by'), '', 'Done by not written');
+    eq(cell('Checklists', 'ck_1', 'Updated at'), '', 'Updated at not written');
+
+    renamed('Item', 'Task');
+    r = mutate([op('checklist.add', 'ck_new9', { list: 'Packing', item: 'Rail pass voucher' }, at(1))]);
+    eq(r.results[0].status, 'rejected');
+    ok(/"Item"/.test(r.results[0].reason), r.results[0].reason);
+    ok(!STUB.sheets.Checklists.rows.some(function (row) { return row[0] === 'ck_new9'; }), 'no half-empty row added');
+
+    renamed('Updated at', 'Last change');
+    r = mutate([op('checklist.update', 'ck_1', { notes: 'x' }, at(1))]);
+    eq(r.results[0].status, 'rejected', 'without Updated at, last-change-wins would be off');
+    ok(/"Updated at"/.test(r.results[0].reason), r.results[0].reason);
+
+    renamed('Deleted', 'Removed');
+    eq(mutate([op('checklist.delete', 'ck_1', {}, at(1))]).results[0].status, 'rejected', 'delete needs the Deleted column');
+  });
+
+  test('a person sorting the tab between two ops: the second op still lands on its own row', function () {
+    STUB.reset(tabs(function (t) {
+      t.Checklists.values.splice(2, 0, ['ck_2', 'Pre-trip', 'Fake passport', 'Both', '—', '', false, '', '', '', '', '', false]);
+    }));
+    var moved = false;
+    STUB.onSetValues = function (tab) {
+      if (moved || tab !== 'Checklists') return;
+      moved = true;                                   // swap rows 2 and 3, as a sort would
+      var rows = STUB.sheets.Checklists.rows, a = rows[1]; rows[1] = rows[2]; rows[2] = a;
+    };
+    var r = mutate([op('checklist.update', 'ck_1', { notes: 'first' }, at(1)), op('checklist.update', 'ck_2', { notes: 'in the blue pouch' }, at(2))]);
+    deepEq(r.results.map(function (x) { return x.status; }), ['applied', 'applied']);
+    eq(cell('Checklists', 'ck_2', 'Notes'), 'in the blue pouch', 'on the passport row');
+    eq(cell('Checklists', 'ck_1', 'Notes'), 'first', 'and the first change stayed whole on its own row');
+    eq(cell('Checklists', 'ck_1', 'Updated at'), at(1));
+    eq(cell('Checklists', 'ck_2', 'Updated at'), at(2));
+  });
+
+  test('a tick writes only its own cells: formulas and text around them are never rewritten', function () {
+    STUB.reset(tabs(function (t) { t.Checklists.values[1][9] = '=1+1 typed as text'; }));
+    STUB.raw = [];
+    mutate([op('checklist.update', 'ck_1', { done: true, doneBy: 'Jordan' }, at(1))]);   // Done, Done by, Done at, Updated at
+    var cols = STUB.raw.filter(function (w) { return w.tab === 'Checklists'; }).map(function (w) { return w.col; }).sort(function (a, b) { return a - b; });
+    deepEq(cols, [7, 8, 9, 12], 'Notes (10) and Sort (11) untouched');
+    eq(STUB.writes.filter(function (w) { return w.tab === 'Checklists'; }).length, 2, 'two calls: Done…Done at, then Updated at');
+    eq(cell('Checklists', 'ck_1', 'Notes'), '=1+1 typed as text');
   });
 
   test('mutate: bad batches and a busy lock', function () {

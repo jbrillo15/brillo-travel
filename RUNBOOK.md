@@ -210,3 +210,83 @@ two files: `Code.gs` and `Parse.gs` (an exact copy of `js/parse.js`).
 21. Tell the builder "script deployed". The builder runs `python3 tools/live_check.py` (staging only), which prints ok, env, row counts and issues, never the token.
 
 The first snapshot after a deploy writes IDs into any rows that lack them (ID column only, empty cells only).
+
+### B7. First PROD setup (once, for v0.2.0)
+
+Connects the real **JAPAN 2026** sheet to the PROD app. Jordan does Parts 1–2
+and 4 on the Mac in Chrome, signed in as the account that edits JAPAN 2026.
+The builder does Part 3. About 30 minutes. Do it all on one day: the first
+phone sync writes IDs into every row, so the backup must be fresh.
+
+**Part 1 · Back up the real sheet**
+
+1. Open **JAPAN 2026**.
+2. Click **File → Version history → Name current version**, type `Before Brillo PROD`, click **Save**.
+3. Click **File → Make a copy**, name it `JAPAN 2026 — backup YYYY-MM-DD` (today), click **Make a copy**. Don't share it.
+4. Close the copy's tab and go back to JAPAN 2026.
+
+**Part 2 · Put the script on the real sheet**
+
+5. Click **Extensions → Apps Script**. A project named **Untitled project** opens, containing only an empty `function myFunction() {}`. If you see any other name or code, stop and tell the builder: the sheet already has a script, and step 7 would erase it.
+6. Click the project name at the top left ("Untitled project"), type `Brillo PROD`, click **Rename**.
+7. Click into the `Code.gs` editor, press Cmd+A, then Delete.
+8. In the Terminal panel run `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pbcopy < ~/Desktop/Claude/Projects/Personal/brillo-travel/server/Code.gs`
+9. Click into the editor and press Cmd+V.
+10. Click **+** next to Files, choose **Script**, type `Parse`, press Return.
+11. Click into the new `Parse.gs` editor, press Cmd+A, then Delete.
+12. In the Terminal panel run `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pbcopy < ~/Desktop/Claude/Projects/Personal/brillo-travel/js/parse.js`
+13. Click into the editor, press Cmd+V, then Cmd+S.
+13a. Tell the builder "pasted". The builder confirms through Claude in Chrome that both files match the repo exactly (a checksum). If either doesn't match, redo steps 7–13.
+14. In the Terminal panel run `python3 ~/Desktop/Claude/Projects/Personal/brillo-travel/tools/setup_prod.py token`. It saves a new prod token on the Mac and copies it without showing it.
+15. In Apps Script's left sidebar, click **Project Settings** (the gear).
+16. Scroll to **Script Properties** and click **Add script property**.
+17. Property: `API_TOKEN`. Value: click the box and press Cmd+V.
+18. Click **Add script property** again. Property: `ENV`. Value: `prod`.
+19. Click **Save script properties**.
+20. Click **Deploy → New deployment** (top right). This is the only time you use "New deployment".
+21. Click the gear next to "Select type" and choose **Web app**.
+22. Description: `v0.2.0`. Execute as: **Me**. Who has access: **Anyone**.
+23. Click **Deploy**.
+24. Click **Authorize access**, choose your account, click **Advanced → Go to Brillo PROD (unsafe) → Allow**. (The warning is expected: you wrote the script.)
+25. Under "Web app", click **Copy** next to the URL that ends in `/exec`.
+26. In the Terminal panel run `python3 ~/Desktop/Claude/Projects/Personal/brillo-travel/tools/setup_prod.py url`. It saves the URL and clears the clipboard.
+27. Tell the builder "prod script deployed".
+
+If step 26 says the clipboard has no web app URL, redo step 25 and run it again.
+If you stop between steps 14 and 19, just rerun step 14 later: until the URL is
+saved, it makes a fresh token.
+
+**Part 3 · Publish the PROD site (builder)**
+
+28. The builder adds the `prod` remote (`jbrillo15/brillo-travel`), checks the author and the trip-data scan, asks Jordan, and pushes the release.
+29. Jordan: on github.com open **jbrillo15/brillo-travel → Settings → Pages**, set Source **Deploy from a branch**, Branch **main**, folder **/ (root)**, click **Save**.
+30. The builder confirms `https://jbrillo15.github.io/brillo-travel/` serves the release.
+
+**Part 4 · Phones** (each phone, Jordan's first)
+
+31. Run **B5** with `prod` at the end of step 1. Install it as a **new** home-screen app from `https://jbrillo15.github.io/brillo-travel/`; leave the staging icon alone. Nothing carries over between the two.
+32. In the new app, tap **ⓘ** on Today, scroll to the bottom, tap **Settings**, and check it says **prod** and **script 0.2.0**, with no Data health errors.
+33. Smoke test (DQ-03, DQ-04): on Jordan's phone tick one Pre-trip item, then on Lindsay's phone tap **Sync now** and check it shows ticked. Untick it the same way.
+33a. Both phones: press and hold the Brillo icon that shows the orange STAGING ribbon inside, and tap **Delete App**. The real-trip Brillo isn't affected. When Jordan needs the test app again, he re-adds it with B5 (staging) and types the name **Brillo TEST** on the Add to Home Screen screen.
+34. Tell the builder "prod phones done". The builder reads the real sheet once (read only) to confirm the IDs and the tick, then tags `v0.2.0`.
+
+The builder never runs `live_check.py`, `tests/live-staging.html` or
+`resetStaging` against PROD (the script refuses the last one anyway).
+
+**If step 32 or 33 fails**
+
+1. Stop. Don't tick anything else.
+2. In the Brillo PROD Apps Script, click **Deploy → Manage deployments**, select the deployment, and click **Archive**. Both phones are now cut off from the real sheet.
+3. Open JAPAN 2026 → **File → Version history → See version history**. Compare it with "Before Brillo PROD". If anything besides the new ID cells changed, open "Before Brillo PROD" and click **Restore this version**.
+4. Delete the PROD Brillo icon on both phones.
+5. Tell the builder what you saw.
+
+Later script fixes always use **Manage deployments → Edit → New version** (B2), never New deployment.
+
+### B8. Phone trouble in Japan (no Mac)
+
+Before the trip (by Nov 15): save the PROD setup code as an entry in the **Passwords** app on both phones (title "Brillo setup code", password = the code). Make it on the Mac with `make_setup_code.py prod`, AirDrop or paste it into Passwords, then clear the clipboard. The same code already lives inside the app, so this adds little risk.
+
+- **Brillo deleted, or a phone reset or replaced:** in Safari open `https://jbrillo15.github.io/brillo-travel/` → Share → **Add to Home Screen** → open Brillo → pick the phone's owner → open Passwords, copy "Brillo setup code" → paste it into Brillo. Changes that hadn't synced on the old install are gone, so check the list against the sheet.
+- **Phone lost or stolen:** on the other phone open **Find My** → Devices → the lost phone → **Erase This Device**. That removes Brillo and its saved code. Keep using Brillo on the other phone, and rotate the token when you're home (B4).
+- **Brillo won't sync at all:** the saved copy still works offline. Then use the printed fallbacks (HANDOFF §15) and the Sheets app. No fixes from a hotel room unless it's a P0 and Jordan OKs it.

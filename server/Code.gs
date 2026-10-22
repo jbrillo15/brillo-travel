@@ -8,7 +8,7 @@
  * Actions: ping, snapshot, mutate (Phase 2 write path), resetStaging (staging only).
  */
 
-var SERVER_VERSION = '0.2.0';
+var SERVER_VERSION = '0.2.1';
 var API = 1;
 var READ_TABS = ['Settings', 'Itinerary', 'Hotels', 'Transportation', 'Expenses', 'Ideas', 'Checklists', 'Phrases'];
 var ID_PREFIX = { Itinerary: 'it_', Hotels: 'ho_', Transportation: 'tr_', Expenses: 'ex_', Ideas: 'id_', Checklists: 'ck_', Phrases: 'ph_' };
@@ -172,6 +172,14 @@ function applyOp_(ss, tables, log, op, device, now) {
     clean[k] = v.value;
   }
   var rowNo = t.rowOf[op.id];
+  // Someone may have sorted or inserted rows since this call read the tab (human edits
+  // don't take the script lock): confirm the row still holds this ID, else find it again.
+  if (rowNo && String(t.sh.getRange(rowNo, t.col.id + 1).getValue()) !== op.id) {
+    delete tables[spec.tab];
+    t = table_(ss, tables, spec.tab);
+    rowNo = t && t.rowOf[op.id];
+  }
+  if (!t) return rejected_('The ' + BT.parse.TABS[spec.tab].tab + ' tab is missing or has no ID column');
   if (!rowNo && spec.mode !== 'upsert') return rejected_('Not found in the sheet (it may have been deleted there)');
   // Required columns: present on a new row, and never blanked by a later edit.
   var blanked = (REQUIRED[spec.tab] || []).filter(function (k) { return clean[k] === '' || (!rowNo && clean[k] === undefined); });
@@ -180,12 +188,20 @@ function applyOp_(ss, tables, log, op, device, now) {
   if (missing.length) return rejected_('Missing ' + missing.join(', '));
   var updatedKey = spec.tab === 'itinerary' ? 'updated' : 'updatedAt';
   var iso = new Date(at).toISOString();
+  // Every column this op writes must exist. A renamed header would otherwise drop the
+  // value while the phone hears "applied" (ship-check 2026-10-21).
+  var needs = Object.keys(clean).concat([updatedKey]);
+  if (spec.mode === 'delete') needs.push('deleted');
+  if (spec.tab === 'checklists' && ('done' in clean || !rowNo)) needs.push('done', 'doneBy', 'doneAt');
+  var gone = needs.filter(function (k) { return t.col[k] === undefined; });
+  if (gone.length) return rejected_('The ' + BT.parse.TABS[spec.tab].tab + ' tab has no ' + gone.map(function (k) { return '"' + header_(spec.tab, k) + '"'; }).join(', ') +
+    ' column. Restore the header in row 1, then retry.');
 
   if (rowNo) {
     // Last write wins per entity (HANDOFF §6): a newer stored edit beats this op.
     var stored = t.values[rowNo - 1][t.col[updatedKey]];
     var storedAt = stored instanceof Date ? stored.getTime() : Date.parse(stored);
-    if (t.col[updatedKey] !== undefined && !isNaN(storedAt) && storedAt >= at) {
+    if (!isNaN(storedAt) && storedAt >= at) {
       return { status: 'stale', serverUpdatedAt: new Date(storedAt).toISOString() };
     }
     if (spec.mode === 'delete') clean.deleted = true;
@@ -194,7 +210,11 @@ function applyOp_(ss, tables, log, op, device, now) {
       if (!clean.done) clean.doneBy = '';
     }
     clean[updatedKey] = iso;
-    writeCells_(t, rowNo, clean);
+    writeCells_(t, rowNo, clean, op.id, function () {
+      delete tables[spec.tab];
+      var t2 = table_(ss, tables, spec.tab);
+      return t2 && t2.rowOf[op.id] ? { t: t2, rowNo: t2.rowOf[op.id] } : null;
+    });
   } else {
     if (spec.tab === 'checklists') clean.done = false;
     if (spec.tab === 'expenses') { clean.device = device; if (!clean.createdAt) clean.createdAt = iso; }
@@ -207,6 +227,12 @@ function applyOp_(ss, tables, log, op, device, now) {
 }
 
 function rejected_(reason) { return { status: 'rejected', reason: reason }; }
+
+// The sheet header for a field key, for messages ("Done", "Updated at").
+function header_(tab, key) {
+  var c = BT.parse.TABS[tab].cols.filter(function (x) { return x[1] === key; })[0];
+  return c ? c[0] : key;
+}
 
 // Validate one field against its column type; returns { value } or { error }.
 function checkValue_(tab, key, type, v) {
@@ -261,12 +287,27 @@ function cellValue_(type, v) {
   return v;   // booleans and numbers as-is; YYYY-MM-DD dates are read as dates, like typing them
 }
 
-function writeCells_(t, rowNo, obj) {
-  Object.keys(obj).forEach(function (k) {
-    var c = t.col[k];
-    if (c === undefined) return;
-    t.sh.getRange(rowNo, c + 1).setValue(cellValue_(t.types[k], obj[k]));
-    t.values[rowNo - 1][c] = obj[k];
+// Writes only the cells this op changes, one call per run of adjacent columns (a tick is
+// two calls, not four). Before each later run the row's ID is checked again, so a person
+// sorting the tab mid-write can't split a change across two rows. Cells the op doesn't
+// change are never rewritten, so formulas, links and times around them stay untouched
+// (ship-check 2026-10-21).
+function writeCells_(t, rowNo, obj, id, refind) {
+  var cols = Object.keys(obj).filter(function (k) { return t.col[k] !== undefined; })
+    .map(function (k) { return { c: t.col[k], k: k }; }).sort(function (a, b) { return a.c - b.c; });
+  var runs = [];
+  cols.forEach(function (x) {
+    var last = runs[runs.length - 1];
+    if (last && x.c === last[last.length - 1].c + 1) last.push(x); else runs.push([x]);
+  });
+  runs.forEach(function (run, i) {
+    if (i > 0 && String(t.sh.getRange(rowNo, t.col.id + 1).getValue()) !== id) {
+      var found = refind();
+      if (!found) throw new Error('The row moved or was deleted while it was being written');
+      t = found.t; rowNo = found.rowNo;
+    }
+    t.sh.getRange(rowNo, run[0].c + 1, 1, run.length).setValues([run.map(function (x) { return cellValue_(t.types[x.k], obj[x.k]); })]);
+    run.forEach(function (x) { t.values[rowNo - 1][x.c] = obj[x.k]; });
   });
 }
 
