@@ -40,6 +40,16 @@
     var nn = (n < 10 ? '0' : '') + n;
     return html`<span class="day-badge" role="img" aria-label="${'Day ' + n + ', ' + city}"><span aria-hidden="true"><b>${code}</b>${nn}</span></span>`;
   }
+  // Cartoon portraits (art/). "Both" or an unknown name gets the pair, overlapped.
+  var FACES = { jordan: 'Jordan', lindsay: 'Lindsay', penny: 'Penny' };
+  function face(key, cls) {
+    return html`<img class="${'avatar' + (cls ? ' ' + cls : '')}" src="${'art/' + key + '.jpg'}" alt="" width="96" height="96" decoding="async">`;
+  }
+  function avatar(who, cls) {
+    var key = String(who || '').trim().toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(FACES, key)) return face(key, cls);
+    return html`<span class="${'avatar-pair' + (cls ? ' ' + cls : '')}">${face('jordan')}${face('lindsay')}</span>`;
+  }
   function backLink(href, label) {
     return html`<a class="back" href="${href}"><span aria-hidden="true">‹</span> ${label}</a>`;
   }
@@ -49,5 +59,5 @@
   }
 
   BT.dom = { html: html, raw: raw, esc: esc, icon: icon, str: str, Safe: Safe,
-    cardsButton: cardsButton, allergyBadge: allergyBadge, dayBadge: dayBadge, backLink: backLink, plainHeader: plainHeader };
+    cardsButton: cardsButton, allergyBadge: allergyBadge, dayBadge: dayBadge, avatar: avatar, backLink: backLink, plainHeader: plainHeader };
 })();

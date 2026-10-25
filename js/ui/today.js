@@ -10,9 +10,15 @@
     return owner ? part + ', ' + owner : part;
   }
 
-  function header(badge, line, greet) {
-    // Row 1: station mark and actions. Then the greeting and the day line, each full width (DESIGN §6).
-    return html`<header class="topbar">${badge}<span></span><div class="top-actions"><a class="btn btn-icon" href="#/info" aria-label="Info and settings">${D.icon('i-info')}</a>${D.cardsButton()}</div><div class="greeting">${greet}</div><div class="dayline">${line}</div></header>`;
+  function header(badge, line, greet, owner) {
+    // Row 1: station mark and actions. Then the greeting (with the phone owner's portrait) and the day line, each full width (DESIGN §6).
+    return html`<header class="topbar">${badge}<span></span><div class="top-actions"><a class="btn btn-icon" href="#/info" aria-label="Info and settings">${D.icon('i-info')}</a>${D.cardsButton()}</div><div class="greeting">${D.avatar(owner, 'greet-face')}<span>${greet}</span></div><div class="dayline">${line}</div></header>`;
+  }
+
+  // The three of them at the lake, with a line of text over the bottom edge.
+  function photoCard(big, small) {
+    return html`<figure class="photo-card"><img src="art/couple.jpg" alt="Jordan, Lindsay and Penny" width="960" height="720" decoding="async">
+      <figcaption>${big}<div class="photo-line">${small}</div></figcaption></figure>`;
   }
 
   function nowNextCard(nn) {
@@ -51,12 +57,10 @@
     var hour = T.partsIn(now, s.homeTz).hh;
     return {
       city: null,
-      header: header(D.dayBadge('Travel', 0, s.tripStart ? 'Trip starts ' + T.fmtDay(s.tripStart) : 'Trip not started'), s.tripName, greeting(S.owner, hour)),
+      header: header(D.dayBadge('Travel', 0, s.tripStart ? 'Trip starts ' + T.fmtDay(s.tripStart) : 'Trip not started'), s.tripName, greeting(S.owner, hour), S.owner),
       body: html`
-        <div class="countdown">
-          <div class="display num">${days === null ? '—' : days}</div>
-          <div class="secondary">${days === null ? 'Add the trip dates in Settings (sheet)' : days === 1 ? 'day to go' : 'days to go'}${s.tripStart ? ' · leaving ' + T.fmtDay(s.tripStart) : ''}</div>
-        </div>
+        ${photoCard(html`<div class="display num">${days === null ? '—' : days}</div>`,
+          (days === null ? 'Add the trip dates in Settings (sheet)' : days === 1 ? 'day to go' : 'days to go') + (s.tripStart ? ' · leaving ' + T.fmtDay(s.tripStart) : ''))}
         <section><div class="section-title"><h2>Before you go</h2><a class="secondary section-link" href="#/list/Pre-trip">${pre.total ? 'All ' + pre.total : 'Pre-trip'} ›</a></div>
           ${pre.items.length ? html`<ul class="checks check-card">${pre.items.map(function (c) { return BT.ui.lists.row(c, home); })}</ul>` : html`<p class="empty">Nothing left to do before the trip.</p>`}
         </section>
@@ -78,7 +82,7 @@
     var hour = T.partsIn(now, s.homeTz).hh;
     return {
       city: 'Travel',
-      header: header(D.dayBadge('Travel', 0), 'Travel day · ' + T.fmtDay(day), greeting(S.owner, hour)),
+      header: header(D.dayBadge('Travel', 0), 'Travel day · ' + T.fmtDay(day), greeting(S.owner, hour), S.owner),
       body: html`
         <section><div class="section-title"><h2>Flights</h2></div>${legs.length ? P.legList(legs) : html`<p class="empty">No flights in the Transportation tab yet.</p>`}</section>
         ${items.length ? html`<section><div class="section-title"><h2>Today</h2></div>${P.line(items)}</section>` : ''}`
@@ -101,7 +105,7 @@
     var line = (n ? 'Day ' + n.n + ' of ' + n.total + ' · ' : '') + city;
     return {
       city: city,
-      header: header(D.dayBadge(city, n && n.n), line, greeting(S.owner, hour)),
+      header: header(D.dayBadge(city, n && n.n), line, greeting(S.owner, hour), S.owner),
       body: html`
         ${nowNextCard(nn)}
         ${overdue.length ? html`<section><div class="section-title"><h2>Overdue from before the trip</h2><a class="secondary section-link" href="#/list/Pre-trip">Pre-trip ›</a></div>
@@ -119,8 +123,8 @@
     var done = vm.itinerary.filter(function (x) { return x.done; }).length;
     return {
       city: null,
-      header: header(D.dayBadge('Travel', 0, 'Trip complete'), s.tripName, 'Welcome home' + (S.owner ? ', ' + S.owner : '')),
-      body: html`<section class="summary">
+      header: header(D.dayBadge('Travel', 0, 'Trip complete'), s.tripName, 'Welcome home' + (S.owner ? ', ' + S.owner : ''), S.owner),
+      body: html`${photoCard(html`<div class="photo-title">${s.tripName || 'Trip complete'}</div>`, s.tripStart ? T.fmtDay(s.tripStart) + ' – ' + T.fmtDay(s.tripEnd) : '')}<section class="summary">
         <h2>Trip summary</h2>
         <ul class="plain-list">
           <li><span>Dates</span><span class="meta">${s.tripStart ? T.fmtDay(s.tripStart) + ' – ' + T.fmtDay(s.tripEnd) : ''}</span></li>

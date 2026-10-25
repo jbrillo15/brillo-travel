@@ -4,7 +4,16 @@ Versions follow semantic versioning. 0.x during the build; 1.0.0 is the trip
 release. The version here must match `js/config.js` and the service worker
 cache name (a unit test checks this).
 
-## 0.2.1 (staging)
+## 0.2.2
+
+Personal art.
+
+- New app icon: the cartoon of Jordan, Lindsay and Penny. Phones keep the old icon until Brillo is removed from the home screen and added again.
+- Today, before and after the trip: the lake photo of all three with the countdown under it. The greeting shows the phone owner's face.
+- Lists: open items show the owner's face (both faces for "Both"); done items show who ticked them.
+- Ticking an item pops the ticker's face up from the checkbox. Finishing a whole list shows all three faces and "<List> done!". With Reduce Motion the pop is skipped and the list card shows without moving.
+
+## 0.2.1 (PROD Oct 25)
 
 Fixes from the Oct 21 production-readiness check, before the first PROD release.
 
