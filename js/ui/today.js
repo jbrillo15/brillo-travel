@@ -130,7 +130,7 @@
           <li><span>Dates</span><span class="meta">${s.tripStart ? T.fmtDay(s.tripStart) + ' – ' + T.fmtDay(s.tripEnd) : ''}</span></li>
           <li><span>Plans marked done</span><span class="meta num">${done} of ${vm.itinerary.length}</span></li>
         </ul>
-        <p class="secondary">The expense export arrives with Budget in v0.3.</p>
+        <p class="secondary">Export the expenses from Budget (Export CSV).</p>
       </section>`
     };
   }

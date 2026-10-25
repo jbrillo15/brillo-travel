@@ -8,7 +8,8 @@
   var S = {
     env: null, db: null, setup: null, owner: null, snapshot: null, vm: BT.model.build(null),
     status: { state: 'idle' }, sheet: null, update: null, updateNote: null, setupError: null,
-    simulate: null, storageError: null, sync: null, incompatible: null, packView: 'bag', saveError: null
+    simulate: null, storageError: null, sync: null, incompatible: null, packView: 'bag', saveError: null,
+    fxCache: null, prefill: null
   };
   BT.app = { state: S };
 
@@ -21,7 +22,7 @@
     var arg = null;
     try { arg = parts[1] ? decodeURIComponent(parts[1]) : null; } catch (e) { arg = parts[1]; }
     var tab = { today: 'today', info: 'today', settings: 'today', health: 'today', trip: 'trip', day: 'trip', item: 'trip',
-      lists: 'lists', list: 'lists', check: 'lists', 'sync-issues': 'lists', budget: 'budget', nearby: 'nearby' }[name] || 'today';
+      lists: 'lists', list: 'lists', check: 'lists', 'sync-issues': 'lists', budget: 'budget', expense: 'budget', calc: 'budget', nearby: 'nearby' }[name] || 'today';
     return { name: name, arg: arg, tab: tab };
   }
   function screenFor(r) {
@@ -37,7 +38,10 @@
       case 'list': return BT.ui.lists.list(S, r.arg);
       case 'check': return BT.ui.lists.edit(S, r.arg);
       case 'sync-issues': return BT.ui.lists.issues(S);
-      case 'budget': case 'nearby': return BT.ui.placeholders[r.name](S);
+      case 'budget': return BT.ui.budget.overview(S);
+      case 'expense': return BT.ui.budget.form(S, r.arg || 'new');
+      case 'calc': return BT.ui.budget.calc(S);
+      case 'nearby': return BT.ui.placeholders.nearby(S);
       default: return BT.ui.today.render(S);
     }
   }
@@ -99,11 +103,12 @@
   function flushDeferred() {
     if (!deferred || typing()) return;
     deferred = false;
-    if (route().name !== 'check') render();
+    if (!document.querySelector('[data-hold]')) render();
   }   // E2E: redraw after setting state directly
   // An open edit form is never redrawn by a sync: unsaved text would vanish (ship-check
-  // 2026-10-21). It redraws when the person saves or leaves.
-  function holdRender() { return typing() || !!document.querySelector('form[data-action="save-check"]'); }
+  // 2026-10-21). It redraws when the person saves or leaves. Any screen holding typed
+  // state marks itself data-hold (list item edit, expense form, calculator).
+  function holdRender() { return typing() || !!document.querySelector('[data-hold]'); }
   function typing() { return !!(document.activeElement && /TEXTAREA|INPUT|SELECT/.test(document.activeElement.tagName)); }
   function renderSyncOnly() {
     var st = BT.sync.describe(S.status, T.now());
@@ -138,9 +143,20 @@
       S.vm = BT.model.build(snap, S.sync ? S.sync.overlay() : []);
       S.snapshot = snap;
       S.dataError = null;
+      rememberRate(snap);
     } catch (e) {
       S.dataError = String(e && e.message || e);
     }
+  }
+  // The phone keeps the last good live rate, for when GOOGLEFINANCE says #N/A (EC-57).
+  function rememberRate(snap) {
+    var live = snap && snap.data && snap.data.settings && snap.data.settings.fxLive;
+    var at = snap && snap.generatedAt ? new Date(snap.generatedAt) : null;
+    if (!BT.budget.goodRate(live) || !at || isNaN(at.getTime())) return;
+    var date = T.tripDate(at);
+    if (S.fxCache && S.fxCache.rate === live && S.fxCache.date === date) return;
+    S.fxCache = { rate: live, date: date };
+    if (S.db) S.db.put('prefs', 'fx', S.fxCache).catch(function () { /* the sheet's fallback still works */ });
   }
   function applySimulation(sim) {
     S.simulate = S.env === 'staging' && sim ? sim : null;
@@ -187,10 +203,11 @@
         else if ((st.state === 'setup' && !holdRender()) || bannerChanged) render();
         else renderSyncOnly();
       });
-      return Promise.all([S.sync.load(), S.db.get('prefs', 'packView')]);
+      return Promise.all([S.sync.load(), S.db.get('prefs', 'packView'), S.db.get('prefs', 'fx')]);
     }).then(function (v) {
       var snap = v[0];
       if (v[1]) S.packView = v[1];
+      S.fxCache = v[2] && BT.budget.goodRate(v[2].rate) ? v[2] : null;
       if (snap) applySnapshot(snap);
       S.status = S.sync.status();
       // A mismatch saved before the app closed keeps its banner until the script answers.
@@ -292,11 +309,100 @@
     change('checklist.update', id, fields).then(function (op) { if (op) location.hash = back; });
   }
 
+  // ---------- expenses (HANDOFF §8.4; through the outbox) ----------
+  function findExpense(id) { return S.vm.expenses.filter(function (e) { return e.id === id; })[0]; }
+  function expenseValues(form) {
+    // namedItem: a radio group comes back as a RadioNodeList whose .value is the checked one.
+    function val(k) { var el = form.elements.namedItem(k); return el ? String(el.value || '') : ''; }
+    var tf = form.elements.namedItem('taxFree');
+    return { amount: val('amount'), currency: val('currency'), category: val('category'), envelope: val('envelope'),
+      method: val('method'), paidBy: val('paidBy'), tripDate: val('tripDate'), note: val('note').trim(),
+      taxFree: tf && tf.checked ? 'TRUE' : 'FALSE', refundStatus: val('refundStatus') || 'n/a' };
+  }
+  function formError(form, msg, field) {
+    var p = form.querySelector('[data-error]');
+    if (p) { p.textContent = msg; p.hidden = false; }
+    var el = field && form.elements.namedItem(field);
+    if (el && el.focus) el.focus();
+  }
+  // Category picks the envelope; Shopping shows the tax-free toggle; Suica shows the tip.
+  function syncExpenseForm(form, changed) {
+    var env = form.elements.namedItem('envelope');
+    if (changed === 'category') env.value = BT.budget.envelopeFor(form.elements.namedItem('category').value);
+    var shop = env.value === 'Shopping' && form.elements.namedItem('category').value !== 'Tax refund';
+    var tf = form.querySelector('[data-taxfree]'); if (tf) tf.hidden = !shop;
+    var tip = form.querySelector('[data-suica-tip]'); if (tip) tip.hidden = form.elements.namedItem('method').value !== 'Suica';
+    var refund = form.querySelector('[data-refund]'), box = form.elements.namedItem('taxFree');
+    if (refund && form.getAttribute('data-id')) refund.hidden = !(box && box.checked);
+    var cur = form.querySelector('[data-cur]'); if (cur) cur.textContent = form.elements.namedItem('currency').value === 'USD' ? '$' : '¥';
+  }
+  function typedExpense(v) {
+    var shop = v.envelope === 'Shopping' && v.category !== 'Tax refund', tf = shop && v.taxFree === 'TRUE';
+    return { amount: BT.budget.parseAmount(v.amount), currency: v.currency, category: v.category, envelope: v.envelope,
+      method: v.method, paidBy: v.paidBy, tripDate: v.tripDate, note: String(v.note || '').trim(), taxFree: tf,
+      refundStatus: tf ? (v.refundStatus === 'n/a' ? 'Pending' : v.refundStatus) : 'n/a' };
+  }
+  function saveExpense(form) {
+    var id = form.getAttribute('data-id');
+    var e = id ? findExpense(id) : null;
+    if (id && !e) {
+      S.saveError = 'This expense was deleted (on the other phone or in the sheet), so the change wasn\'t saved.';
+      location.hash = '#/budget';
+      return;
+    }
+    var v = expenseValues(form), f = typedExpense(v);
+    if (f.amount === null) { formError(form, 'Type the amount as a whole number above zero.', 'amount'); return; }
+    if (BT.budget.CATEGORIES.indexOf(f.category) < 0) { formError(form, 'Pick a category.'); return; }
+    // Method may stay blank on a row typed into the sheet; the script doesn't require it.
+    if (BT.budget.ENVELOPES.indexOf(f.envelope) < 0 || (f.method && BT.budget.METHODS.indexOf(f.method) < 0) || BT.budget.CURRENCIES.indexOf(f.currency) < 0) {
+      formError(form, 'Pick an envelope, a currency and how it was paid.'); return;
+    }
+    if (!T.isIsoDate(f.tripDate)) { formError(form, 'Pick the date it was spent.', 'tripDate'); return; }
+    var fields = {};
+    if (e) {
+      var o = typedExpense(JSON.parse(form.getAttribute('data-orig') || '{}'));
+      Object.keys(f).forEach(function (k) { if (f[k] !== o[k]) fields[k] = f[k]; });
+      if (fields.paidBy === '') delete fields.paidBy;    // a name the form can't show (sheet typo) is left alone
+      if (!Object.keys(fields).length) { location.hash = '#/budget'; return; }
+    } else {
+      fields = f;
+      fields.createdAt = T.now().toISOString();
+    }
+    // EC-50: a large amount asks first (when it's new or the amount changed).
+    if ('amount' in fields || 'currency' in fields) {
+      var r = BT.ui.budget.rateFor(S), jpy = BT.budget.jpyOf(f, r);
+      if (jpy !== null && jpy >= S.vm.settings.largeAmountConfirm) {
+        var other = f.currency === 'USD' ? '≈ ' + BT.budget.yen(jpy) : BT.budget.usdOf(jpy, r) === null ? '' : '≈ ' + BT.budget.usd(BT.budget.usdOf(jpy, r));
+        if (!confirm('Confirm ' + BT.budget.money(f) + (other ? ' (' + other + ')' : '') + '?')) return;
+      }
+    }
+    S.prefill = null;
+    change('expense.upsert', id || BT.sync.newId('ex_'), fields).then(function (op) { if (op) location.hash = '#/budget'; });
+  }
+  function exportCsv() {
+    var r = BT.ui.budget.rateFor(S);
+    var name = 'brillo-expenses-' + BT.ui.budget.today() + '.csv';
+    var text = BT.budget.csv(S.vm.expenses, r);
+    var file = null;
+    try { file = new File([text], name, { type: 'text/csv' }); } catch (e) { /* older browsers: download below */ }
+    // AC-B7: the iOS share sheet (Save to Files, Mail, AirDrop).
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: 'Brillo expenses' }).catch(function () { /* cancelled */ });
+      return;
+    }
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv' }));
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 10000);
+  }
+
   function onSubmit(ev) {
     var form = ev.target;
     var a = form.getAttribute && form.getAttribute('data-action');
     if (a === 'add-check') { ev.preventDefault(); addCheck(form); }
     else if (a === 'save-check') { ev.preventDefault(); saveCheck(form); }
+    else if (a === 'save-expense') { ev.preventDefault(); saveExpense(form); }
   }
 
   function onClick(ev) {
@@ -315,6 +421,15 @@
       if (!confirm('Delete this item from the list on both phones? It stays in the sheet, marked Deleted.')) return;
       var list = el.getAttribute('data-list');
       change('checklist.delete', el.getAttribute('data-id'), {}).then(function (op) { if (op) location.hash = '#/list/' + encodeURIComponent(list); });
+    } else if (a === 'delete-expense') {
+      if (!confirm('Delete this expense on both phones? It stays in the sheet, marked Deleted.')) return;
+      change('expense.delete', el.getAttribute('data-id'), {}).then(function (op) { if (op) location.hash = '#/budget'; });
+    } else if (a === 'export-csv') {
+      exportCsv();
+    } else if (a === 'calc-log') {
+      var price = document.querySelector('[data-action="calc-input"]');
+      S.prefill = { amount: price ? BT.budget.parseAmount(price.value) || '' : '' };
+      location.hash = '#/expense/new';
     } else if (a === 'retry-op') {
       S.sync.retry(el.getAttribute('data-op'));
     } else if (a === 'discard-op') {
@@ -353,12 +468,17 @@
     if (a === 'paste-setup') {
       var v = el.value; el.value = '';           // the code never stays on screen
       if (v.trim()) savePasted(v);
+    } else if (a === 'calc-input') {
+      var out = document.querySelector('[data-calc-out]');
+      if (out) out.innerHTML = D.str(BT.ui.budget.calcResult(S, el.value));
     }
   }
 
   function onChange(ev) {
     var el = ev.target;
     var a = el.getAttribute && el.getAttribute('data-action');
+    var ef = el.form && el.form.getAttribute('data-action') === 'save-expense' ? el.form : null;
+    if (ef) { syncExpenseForm(ef, el.name); return; }
     if (a === 'set-owner') {
       S.owner = el.value || null;
       S.db.put('prefs', 'owner', S.owner).then(render, render);
@@ -436,6 +556,7 @@
     var enterTimer = null;
     window.addEventListener('hashchange', function () {
       S.sheet = null;
+      if (route().name !== 'expense') S.prefill = null;
       root.setAttribute('data-enter', '');      // screen entrance plays on route changes only (DESIGN §8)
       render(); window.scrollTo(0, 0);
       clearTimeout(enterTimer);

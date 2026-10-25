@@ -85,6 +85,23 @@
       ['ck_d1', 'Departure day', 'Fake checkout', 'Both', '—', '2026-11-26', false, '', '', '', 60, '', false],
       ['ck_x1', 'Packing', 'Fake deleted', 'Both', 'Suitcase', '', false, '', '', '', 70, '', true]);
   };
+  // Expenses for the Budget scenarios (all fake): Nov 19–20 spending, today's lunch, an ATM
+  // withdrawal, a tax-free purchase and a pre-trip USD booking. Shopping ¥100,000, cash ¥50,000.
+  E2E.withExpenses = function (raw) {
+    var set = raw.Settings.values;
+    set.forEach(function (r) {
+      if (r[0] === 'Shopping budget ¥') r[1] = 100000;
+      if (r[0] === 'Starting cash ¥') r[1] = 50000;
+    });
+    raw.Expenses.values.push(
+      ['ex_e1', '2026-11-19T03:00:00Z', '2026-11-19', 35000, 'JPY', 'Daily', 'Food', 'Card', 'Jordan', 'Fake dinner', false, 'n/a', 'jordan-iphone', '', false],
+      ['ex_e2', '2026-11-20T03:00:00Z', '2026-11-20', 25000, 'JPY', 'Daily', 'Activities', 'Cash', 'Lindsay', 'Fake museum', false, 'n/a', 'lindsay-iphone', '', false],
+      ['ex_e3', '2026-11-21T02:00:00Z', '2026-11-21', 5000, 'JPY', 'Daily', 'Food', 'Cash', 'Jordan', 'Fake lunch', false, 'n/a', 'jordan-iphone', '', false],
+      ['ex_e4', '2026-11-21T01:00:00Z', '2026-11-21', 30000, 'JPY', 'Cash movement', 'ATM withdrawal', 'Cash', 'Jordan', '', false, 'n/a', 'jordan-iphone', '', false],
+      ['ex_e5', '2026-11-20T05:00:00Z', '2026-11-20', 22000, 'JPY', 'Shopping', 'Shopping', 'Card', 'Lindsay', 'Fake jacket', true, 'Pending', 'lindsay-iphone', '', false],
+      ['ex_e6', '2026-10-01T05:00:00Z', '2026-10-01', 120, 'USD', 'Bookings', 'Tickets', 'Card', 'Jordan', 'Fake park tickets', false, 'n/a', 'jordan-iphone', '', false],
+      ['ex_e7', '2026-11-20T06:00:00Z', '2026-11-20', 9999, 'JPY', 'Daily', 'Food', 'Card', 'Jordan', 'Fake deleted', false, 'n/a', 'jordan-iphone', '', true]);
+  };
   // A fake script that applies mutate ops to its own copy of the fixture sheet, so the
   // next snapshot reflects them (enough of Code.gs's behavior for the UI round trip).
   E2E.fakeScript = function (opts) {
@@ -104,8 +121,19 @@
       }
       var snap = E2E.snapshot(function (raw) {
         E2E.withLists(raw);
+        if (opts.expenses) E2E.withExpenses(raw);
         var H = raw.Checklists.values[0];
+        var X = raw.Expenses.values[0];
+        var XMAP = { createdAt: 'Created at', tripDate: 'Trip date', amount: 'Amount', currency: 'Currency', envelope: 'Envelope', category: 'Category',
+          method: 'Method', paidBy: 'Paid by', note: 'Note', taxFree: 'Tax-free', refundStatus: 'Refund status' };
         applied.forEach(function (op) {
+          if (/^expense\./.test(op.type)) {
+            var xr = raw.Expenses.values.filter(function (r) { return r[0] === op.id; })[0];
+            if (!xr) { xr = X.map(function () { return ''; }); xr[0] = op.id; xr[X.indexOf('Deleted')] = false; xr[X.indexOf('Device')] = body.device; raw.Expenses.values.push(xr); }
+            Object.keys(op.fields).forEach(function (k) { if (XMAP[k]) xr[X.indexOf(XMAP[k])] = op.fields[k]; });
+            if (op.type === 'expense.delete') xr[X.indexOf('Deleted')] = true;
+            return;
+          }
           var row = raw.Checklists.values.filter(function (r) { return r[0] === op.id; })[0];
           if (!row) { row = H.map(function () { return ''; }); row[0] = op.id; row[6] = false; row[12] = false; raw.Checklists.values.push(row); }
           var map = { list: 'List', item: 'Item', owner: 'Owner', bag: 'Bag', due: 'Due', done: 'Done', doneBy: 'Done by', notes: 'Notes', sort: 'Sort' };

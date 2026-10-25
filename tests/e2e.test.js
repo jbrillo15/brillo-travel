@@ -577,4 +577,263 @@ suite('e2e', function () {
       ok(/#\/lists/.test(w.location.hash), 'back on Lists');
     });
   });
+
+  // ---------- Budget (v0.3, HANDOFF §8.4) ----------
+  function budgetSnap(mutate) { return E2E.snapshot(function (raw) { E2E.withLists(raw); E2E.withExpenses(raw); if (mutate) mutate(raw); }); }
+  function typeInto(w, sel, text) {
+    var el = w.document.querySelector(sel);
+    if (!el) throw new Error('no input ' + sel);
+    el.focus(); el.value = text;
+    el.dispatchEvent(new w.Event('input', { bubbles: true }));
+    el.dispatchEvent(new w.Event('change', { bubbles: true }));
+    el.blur();
+  }
+  function pick(w, name, value) {
+    var input = w.document.querySelector('form[data-action="save-expense"] input[name="' + name + '"][value="' + value + '"]');
+    if (!input) throw new Error('no choice ' + name + '=' + value);
+    input.closest('label').click();                              // a tap on the chip
+  }
+  function submitExpense(w) { return E2E.click(w, 'form[data-action="save-expense"] button[type="submit"]').then(function () { return E2E.wait(150); }); }
+  function leftToday(w) { return w.document.querySelector('[data-left]').firstChild.textContent.trim(); }
+  function cashOnHand(w) {
+    var env = Array.prototype.filter.call(w.document.querySelectorAll('.envelope'), function (e) { return /Cash on hand/i.test(e.innerText); })[0];
+    return env.querySelector('.env-main').textContent.trim();
+  }
+
+  test('AC-B1 / AC-B2 on screen: left today ¥21,667 of ¥26,667; cash counts the ATM withdrawal; deleted rows hidden', function () {
+    return E2E.seed({ jst: '2026-11-21T14:00', owner: 'Jordan', snapshot: budgetSnap() }).then(function () { return E2E.load('#/budget'); }).then(function (w) {
+      eq(leftToday(w), '¥21,667');
+      has(w, /Spent ¥5,000 of ¥26,667/);
+      has(w, /Trip left ¥155,000 · 6 days/);
+      eq(w.document.querySelector('.budget').getAttribute('data-state'), 'ok');
+      eq(cashOnHand(w), '¥50,000', '50,000 start + 30,000 ATM − 30,000 cash spending');
+      has(w, /¥78,000 left of ¥100,000/);
+      has(w, /1 tax-free purchase waiting for a refund/);
+      has(w, /Fake park tickets/);
+      ok(!/Fake deleted/.test(E2E.text(w)), 'deleted expense hidden');
+      ok(w.document.querySelector('.tab[aria-current="page"][href="#/budget"]'), 'Budget tab is current');
+      E2E.screenChecks(w);
+    });
+  });
+
+  test('AC-B3 (phone half): an expense typed offline shows at once, updates the totals, and survives a relaunch', function () {
+    var w;
+    return E2E.seed({ jst: '2026-11-21T14:00', owner: 'Lindsay', snapshot: budgetSnap() }).then(function () { return E2E.load('#/budget'); }).then(function (win) {
+      w = win;
+      return E2E.click(w, 'a[href="#/expense/new"]');
+    }).then(function () {
+      E2E.screenChecks(w);
+      eq(w.document.querySelector('form[data-action="save-expense"] input[name="tripDate"]').value, '2026-11-21', 'date defaults to today in Japan');
+      ok(w.document.querySelector('input[name="paidBy"][value="Lindsay"]').checked, 'paid by defaults to this phone\'s owner');
+      typeInto(w, 'form[data-action="save-expense"] input[name="amount"]', '1,200');
+      pick(w, 'category', 'Transit');
+      pick(w, 'method', 'Cash');
+      typeInto(w, 'form[data-action="save-expense"] input[name="note"]', 'Fake 切符');
+      return submitExpense(w);
+    }).then(function () {
+      ok(/#\/budget/.test(w.location.hash), 'back on Budget');
+      has(w, /Fake 切符/);
+      has(w, /Waiting to sync/);
+      eq(leftToday(w), '¥20,467');
+      eq(cashOnHand(w), '¥48,800');
+      return E2E.outbox();
+    }).then(function (ops) {
+      eq(ops.length, 1);
+      eq(ops[0].type, 'expense.upsert');
+      ok(/^ex_[a-z2-9]{8}$/.test(ops[0].id), ops[0].id);
+      var f = Object.assign({}, ops[0].fields); delete f.createdAt;
+      deepEq(f, { amount: 1200, currency: 'JPY', category: 'Transit', envelope: 'Daily', method: 'Cash', paidBy: 'Lindsay',
+        tripDate: '2026-11-21', note: 'Fake 切符', taxFree: false, refundStatus: 'n/a' });
+      ok(ops[0].fields.createdAt, 'createdAt set');
+      return E2E.load('#/budget');
+    }).then(function (w2) {
+      has(w2, /Fake 切符/);
+      eq(leftToday(w2), '¥20,467', 'still counted after relaunch');
+    });
+  });
+
+  test('AC-B3 (sync half): back online, the expense reaches the sheet exactly once and the pending mark clears', function () {
+    var script = E2E.fakeScript({ expenses: true });
+    var queued = { opId: 'op_e2eexp001', seq: 1, type: 'expense.upsert', id: 'ex_e2equeue', clientUpdatedAt: new Date().toISOString(), status: 'pending',
+      fields: { amount: 800, currency: 'JPY', category: 'Food', envelope: 'Daily', method: 'Card', paidBy: 'Jordan', tripDate: '2026-11-21', note: 'Fake onigiri', taxFree: false, refundStatus: 'n/a', createdAt: new Date().toISOString() } };
+    return E2E.seed({ jst: '2026-11-21T14:00', owner: 'Jordan', snapshot: budgetSnap(), outbox: [queued] }).then(function () {
+      E2E.fetchStub = script;
+      return E2E.load('#/budget');
+    }).then(function (w) {
+      return E2E.wait(700).then(function () {
+        var mutates = script.calls.filter(function (c) { return c.action === 'mutate'; });
+        eq(mutates.length, 1, 'pushed once');
+        eq(mutates[0].ops.length, 1);
+        eq(w.document.querySelectorAll('.exp-row[data-id="ex_e2equeue"]').length, 1, 'shown once');
+        ok(!/Waiting to sync/.test(E2E.text(w)), 'pending mark gone');
+        eq(leftToday(w), '¥20,867');
+        return E2E.outbox();
+      }).then(function (ops) { eq(ops.length, 0, 'outbox empty'); });
+    });
+  });
+
+  test('edit sends only the changed field; category picks the envelope; a large amount asks first (EC-50)', function () {
+    var w, asked = [];
+    return E2E.seed({ jst: '2026-11-21T14:00', owner: 'Jordan', snapshot: budgetSnap() }).then(function () { return E2E.load('#/expense/ex_e3'); }).then(function (win) {
+      w = win;
+      E2E.screenChecks(w);
+      eq(w.document.querySelector('input[name="amount"]').value, '5000');
+      typeInto(w, 'form[data-action="save-expense"] input[name="amount"]', '6000');
+      return submitExpense(w);
+    }).then(function () {
+      has(w, /Fake lunch/);
+      eq(leftToday(w), '¥20,667');
+      return E2E.outbox();
+    }).then(function (ops) {
+      eq(ops.length, 1);
+      deepEq(ops[0].fields, { amount: 6000 }, 'only the amount');
+      return E2E.go(w, '#/expense/new');
+    }).then(function () {
+      pick(w, 'category', 'Lodging');
+      eq(w.document.querySelector('select[name="envelope"]').value, 'Bookings', 'Lodging → Bookings');
+      pick(w, 'category', 'ATM withdrawal');
+      eq(w.document.querySelector('select[name="envelope"]').value, 'Cash movement');
+      pick(w, 'category', 'Food');
+      typeInto(w, 'form[data-action="save-expense"] input[name="amount"]', '30000');
+      w.confirm = function (msg) { asked.push(msg); return false; };
+      return submitExpense(w);
+    }).then(function () {
+      deepEq(asked, ['Confirm ¥30,000 (≈ $190)?']);
+      ok(/#\/expense\/new/.test(w.location.hash), 'still on the form after Cancel');
+      return E2E.outbox();
+    }).then(function (ops) {
+      eq(ops.length, 1, 'nothing queued after Cancel');
+      typeInto(w, 'form[data-action="save-expense"] input[name="amount"]', '12.5');
+      return submitExpense(w);
+    }).then(function () {
+      has(w, /whole number above zero/);
+      eq(asked.length, 1, 'a bad amount never reaches the confirm');
+    });
+  });
+
+  test('AC-B5 (phone half): delete marks the expense deleted and drops it from the totals', function () {
+    var w;
+    return E2E.seed({ jst: '2026-11-21T14:00', owner: 'Jordan', snapshot: budgetSnap() }).then(function () { return E2E.load('#/expense/ex_e3'); }).then(function (win) {
+      w = win;
+      w.confirm = function () { return true; };
+      return E2E.click(w, '[data-action="delete-expense"]');
+    }).then(function () { return E2E.wait(150); }).then(function () {
+      ok(/#\/budget/.test(w.location.hash));
+      ok(!/Fake lunch/.test(E2E.text(w)), 'gone from the list');
+      eq(leftToday(w), '¥26,667');
+      eq(cashOnHand(w), '¥55,000');
+      return E2E.outbox();
+    }).then(function (ops) {
+      eq(ops.length, 1); eq(ops[0].type, 'expense.delete'); eq(ops[0].id, 'ex_e3'); deepEq(ops[0].fields, {});
+    });
+  });
+
+  test('AC-B4 / AC-B5 (sync half): the other phone\'s edit and delete show after a sync', function () {
+    var changed = budgetSnap(function (raw) {
+      var X = raw.Expenses.values[0];
+      raw.Expenses.values.filter(function (r) { return r[0] === 'ex_e3'; })[0][X.indexOf('Amount')] = 7000;
+      raw.Expenses.values.filter(function (r) { return r[0] === 'ex_e2'; })[0][X.indexOf('Deleted')] = true;
+    });
+    changed.ok = true; changed.api = 1; changed.serverVersion = '0.2.1'; changed.rev = 'other-phone';
+    return E2E.seed({ jst: '2026-11-21T14:00', owner: 'Jordan', snapshot: budgetSnap() }).then(function () {
+      E2E.fetchStub = function () { return reply(changed); };
+      return E2E.load('#/budget');
+    }).then(function (w) {
+      return E2E.wait(500).then(function () {
+        ok(!/Fake museum/.test(E2E.text(w)), 'deleted on the other phone');
+        has(w, /¥7,000/);
+        eq(leftToday(w), '¥23,833', '(220,000 − 35,000) ÷ 6 − 7,000');
+      });
+    });
+  });
+
+  test('Shopping shows the tax-free toggle (saved as refund Pending); Suica shows the top-up tip', function () {
+    var w;
+    return E2E.seed({ jst: '2026-11-21T14:00', owner: 'Jordan', snapshot: budgetSnap() }).then(function () { return E2E.load('#/expense/new'); }).then(function (win) {
+      w = win;
+      var tf = w.document.querySelector('[data-taxfree]'), tip = w.document.querySelector('[data-suica-tip]');
+      ok(tf.hidden && tip.hidden, 'hidden for Food / Card');
+      pick(w, 'method', 'Suica');
+      ok(!tip.hidden, 'Suica tip');
+      pick(w, 'category', 'Shopping');
+      ok(!tf.hidden, 'tax-free toggle for Shopping');
+      w.document.querySelector('input[name="taxFree"]').closest('label').click();
+      pick(w, 'method', 'Card');
+      typeInto(w, 'form[data-action="save-expense"] input[name="amount"]', '15000');
+      return submitExpense(w);
+    }).then(function () { return E2E.outbox(); }).then(function (ops) {
+      eq(ops[0].fields.envelope, 'Shopping');
+      eq(ops[0].fields.taxFree, true);
+      eq(ops[0].fields.refundStatus, 'Pending');
+      has(w, /2 tax-free purchases waiting for a refund/);
+    });
+  });
+
+  test('AC-B6: no live rate → the cached rate with its date, used in the ≈ dollars', function () {
+    return E2E.seed({ jst: '2026-11-21T14:00', owner: 'Jordan', snapshot: budgetSnap(), prefs: { fx: { rate: 150, date: '2026-11-19' } } }).then(function () { return E2E.load('#/budget'); }).then(function (w) {
+      ok(/¥150 = \$1 · rate from Thu Nov 19/.test(w.document.querySelector('[data-rate]').textContent), w.document.querySelector('[data-rate]').textContent);
+      has(w, /≈ \$144/, '21,667 ÷ 150');
+      return E2E.seed({ jst: '2026-11-21T14:00', owner: 'Jordan', snapshot: budgetSnap() }).then(function () { return E2E.load('#/budget'); });
+    }).then(function (w2) {
+      ok(/fallback rate from the sheet/.test(w2.document.querySelector('[data-rate]').textContent), 'no cache: the sheet fallback');
+      has(w2, /≈ \$137/, '21,667 ÷ 158.3');
+    });
+  });
+
+  test('calculator: a yen price shows dollars and what it leaves for today; Log it opens the form with the amount', function () {
+    var w;
+    return E2E.seed({ jst: '2026-11-21T14:00', owner: 'Jordan', snapshot: budgetSnap() }).then(function () { return E2E.load('#/calc'); }).then(function (win) {
+      w = win;
+      E2E.screenChecks(w);
+      typeInto(w, '[data-action="calc-input"]', '3000');
+      var out = w.document.querySelector('[data-calc-out]').innerText;
+      ok(/≈ \$19/.test(out), out);
+      ok(/This would leave ¥18,667 for today/.test(out), out);
+      return E2E.click(w, '[data-action="calc-log"]');
+    }).then(function () {
+      ok(/#\/expense\/new/.test(w.location.hash));
+      eq(w.document.querySelector('form[data-action="save-expense"] input[name="amount"]').value, '3000');
+    });
+  });
+
+  test('AC-B7: Export CSV hands the share sheet a file with every non-deleted expense and JPY / USD columns', function () {
+    var shared = null;
+    return E2E.seed({ jst: '2026-11-21T14:00', owner: 'Jordan', snapshot: budgetSnap() }).then(function () { return E2E.load('#/budget'); }).then(function (w) {
+      w.navigator.canShare = function (d) { return !!(d && d.files); };
+      w.navigator.share = function (d) { shared = d; return Promise.resolve(); };
+      return E2E.click(w, '[data-action="export-csv"]');
+    }).then(function () {
+      ok(shared && shared.files && shared.files.length === 1, 'one file shared');
+      ok(/^brillo-expenses-2026-11-21\.csv$/.test(shared.files[0].name), shared.files[0].name);
+      return shared.files[0].text();
+    }).then(function (text) {
+      var lines = text.replace(/^﻿/, '').trim().split('\r\n');
+      eq(lines.length, 7, 'header + 6 non-deleted');
+      ok(/,JPY,USD,/.test(lines[0]));
+      ok(lines.some(function (l) { return l.indexOf('2026-10-01,Tickets,Bookings,120,USD,18996,120.00') === 0; }), 'USD row converted');
+      ok(!/Fake deleted/.test(text));
+    });
+  });
+
+  test('an open expense form is never redrawn by a sync; Save on one deleted meanwhile says so', function () {
+    var gone = budgetSnap(function (raw) {
+      var X = raw.Expenses.values[0];
+      raw.Expenses.values.filter(function (r) { return r[0] === 'ex_e3'; })[0][X.indexOf('Deleted')] = true;
+    });
+    gone.ok = true; gone.api = 1; gone.serverVersion = '0.2.1'; gone.rev = 'gone-exp';
+    var w;
+    return E2E.seed({ jst: '2026-11-21T14:00', owner: 'Jordan', snapshot: budgetSnap() }).then(function () { return E2E.load('#/expense/ex_e3'); }).then(function (win) {
+      w = win;
+      typeInto(w, 'form[data-action="save-expense"] input[name="note"]', 'typed, not saved');
+      w.BT.api.fetch = function () { return reply(gone); };
+      w.dispatchEvent(new w.Event('online'));
+      return E2E.wait(500);
+    }).then(function () {
+      eq(w.document.querySelector('form[data-action="save-expense"] input[name="note"]').value, 'typed, not saved', 'unsaved text kept');
+      return submitExpense(w);
+    }).then(function () {
+      has(w, /This expense was deleted/);
+      ok(/#\/budget/.test(w.location.hash));
+    });
+  });
 });

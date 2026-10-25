@@ -117,7 +117,7 @@
     return {
       city: null,
       header: D.plainHeader('Edit item', { back: D.backLink(listHref(c.list), c.list) }),
-      body: html`<form class="settings-group edit-item" data-action="save-check" data-id="${c.id}">
+      body: html`<form class="settings-group edit-item" data-action="save-check" data-hold data-id="${c.id}">
           <label class="field"><span class="eyebrow">Item</span>
             <input name="item" type="text" maxlength="200" value="${c.item}" required></label>
           ${select('owner', 'Owner', OWNERS, c.owner, 'Nobody yet')}
@@ -135,6 +135,11 @@
   // What a queued op does, in words (Sync issues).
   function describeOp(op, vm) {
     var f = op.fields || {};
+    if (/^expense\./.test(op.type)) {
+      var e = (vm.expenses || []).filter(function (x) { return x.id === op.id; })[0] || {};
+      var what = (f.note || e.note || f.category || e.category || 'expense') + (f.amount || e.amount ? ' (' + BT.budget.money(Object.assign({}, e, f)) + ')' : '');
+      return op.type === 'expense.delete' ? 'Delete “' + what + '”' : f.createdAt ? 'Add “' + what + '”' : 'Edit “' + what + '”';
+    }
     var c = vm.checklists.filter(function (x) { return x.id === op.id; })[0];
     var name = f.item || (c && c.item) || 'an item';
     switch (op.type) {

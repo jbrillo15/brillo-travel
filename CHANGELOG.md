@@ -4,6 +4,17 @@ Versions follow semantic versioning. 0.x during the build; 1.0.0 is the trip
 release. The version here must match `js/config.js` and the service worker
 cache name (a unit test checks this).
 
+## 0.3.0
+
+Budget.
+
+- **Left today:** the daily number from the Daily budget, spread over the days that are left, with dollars beside it and a meter that turns amber below a quarter and red when over. Before Nov 19 it previews the daily share; after Nov 26 it shows trip totals.
+- **Envelopes:** Shopping (with tax-free purchases waiting for a refund), Cash on hand (starting cash + ATM withdrawals − cash spending) and Bookings (paid, plus hotels marked "Pay at hotel" still to pay). Bookings and ATM withdrawals never count against the daily number.
+- **Add, edit and delete expenses** on either phone, offline too: a big yen field, category chips that pick the envelope, Card / Cash / Suica, who paid, date and note. A Suica tip, a tax-free toggle for Shopping, and a confirm step from ¥20,000. Deleting marks the row Deleted in the sheet; nothing is removed.
+- **Calculator:** type a price in yen to see dollars and what it would leave for today, then log it in one tap.
+- **Exchange rate:** the sheet's live rate, else the last good rate this phone saw (with its date), else the sheet's fallback rate.
+- **Export CSV** through the share sheet, with JPY and USD columns.
+
 ## 0.2.2
 
 Personal art.

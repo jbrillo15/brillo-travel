@@ -107,7 +107,6 @@
 
   BT.ui.settings = { render: settings, setup: setup, health: health };
   BT.ui.placeholders = {
-    budget: placeholder('Budget', 'v0.3', 'Daily spending, shopping and bookings, with a yen-to-dollar calculator.'),
     nearby: placeholder('Nearby', 'v0.4', 'Ideas near you and quick Google Maps searches.')
   };
 })();

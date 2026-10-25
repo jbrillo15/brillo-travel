@@ -23,7 +23,9 @@
       minAppVersion: s.minAppVersion || null,
       insurance: s.insurance || null, emergencyContacts: s.emergencyContacts || null,
       allergenWords: s.allergenWords || null,
-      fxLive: s.fxLive, fxFallback: s.fxFallback
+      fxLive: s.fxLive, fxFallback: s.fxFallback,
+      dailyBudget: s.dailyBudget, shoppingBudget: s.shoppingBudget, startingCash: s.startingCash,
+      largeAmountConfirm: typeof s.largeAmountConfirm === 'number' && s.largeAmountConfirm > 0 ? s.largeAmountConfirm : 20000
     };
   }
 
@@ -78,6 +80,7 @@
       hotels: (d.hotels || []).slice().sort(function (a, b) { return a.checkIn < b.checkIn ? -1 : 1; }),
       legs: legs,
       checklists: (d.checklists || []).filter(function (c) { return !c.deleted; }),
+      expenses: (d.expenses || []).filter(function (e) { return !e.deleted; }),
       phrases: d.phrases || [],
       issues: (snapshot && snapshot.issues) || [],
       staleTabs: (snapshot && snapshot.staleTabs) || [],
