@@ -5,7 +5,7 @@
   var BT = window.BT = window.BT || {};
 
   BT.config = {
-    version: '0.3.0',
+    version: '0.3.1',
     api: 1,
     minServerForWrites: '0.2.0',  // older scripts have no mutate; changes wait on the phone
     maxOpsPerPush: 50,

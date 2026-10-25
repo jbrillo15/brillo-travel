@@ -757,19 +757,21 @@ h1, h2, h3, .display, .topbar .greeting, .nn-title, .hotel .name, .idea .name, .
 .exp-amt small { font-size: var(--fs-caption); font-weight: 500; color: var(--text-2); }
 
 /* Add / edit expense: a big yen field, category chips, two- and three-way choices */
-.amount-row { display: grid; grid-template-columns: 1fr 6.5rem; gap: var(--sp-2); align-items: end; }
-.amount-input { display: flex; align-items: center; gap: var(--sp-2); background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 12px; padding: 0 var(--sp-3); }
+/* minmax(0, 1fr): with large iOS Text Size the amount column must shrink, never push the field off screen */
+.amount-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(4.5rem, 30%); gap: var(--sp-2); align-items: end; }
+.amount-field { min-width: 0; }
+.amount-input { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; min-height: var(--tap); background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 12px; padding: 0 var(--sp-3); }
 .amount-input .cur { font: 600 var(--fs-title-2)/1 var(--font-body); color: var(--text-2); }
-.field .amount-input input { border: 0; background: transparent; padding: var(--sp-2) 0; font: 650 var(--fs-title-1)/1.1 var(--font-body); font-variant-numeric: tabular-nums; min-width: 0; }
+.field .amount-input input { flex: 1 1 auto; width: 100%; min-width: 4ch; border: 0; background: transparent; padding: var(--sp-2) 0; font: 650 var(--fs-title-2)/1.2 var(--font-body); font-variant-numeric: tabular-nums; -webkit-user-select: text; user-select: text; }
 .field .amount-input input:focus { outline: none; }
 .amount-input:focus-within { outline: 2px solid var(--text); outline-offset: 2px; }
 .form-error { margin: 0; color: var(--over); font-weight: 600; }
-fieldset.choice { border: 0; margin: 0; padding: 0; min-width: 0; }
-fieldset.choice legend { padding: 0; margin-bottom: var(--sp-2); }
+.field.choice { min-width: 0; }
+.field.choice > .eyebrow { display: block; white-space: nowrap; }
 .choices { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
-.seg2 .choices { display: grid; grid-template-columns: 1fr 1fr; }
-.seg3 .choices { display: grid; grid-template-columns: repeat(3, 1fr); }
-.choice-chip { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--tap); padding: 0 var(--sp-3);
+.seg2 .choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.seg3 .choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.choice-chip { position: relative; flex: 0 0 auto; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--tap); padding: 0 var(--sp-3);
   border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface-2); color: var(--text); font-weight: 600; cursor: pointer; }
 .choice-chip input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
 .choice-chip svg { width: 18px; height: 18px; flex: none; }

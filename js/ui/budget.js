@@ -128,10 +128,11 @@
 
   // ---------- add / edit (the form is never redrawn by a sync; app.js holdRender) ----------
   function radios(name, label, options, current, cls) {
-    return html`<fieldset class="${'field choice ' + (cls || '')}"><legend class="eyebrow">${label}</legend><div class="choices">
+    // A div radiogroup, not fieldset/legend: older iOS WebKit squeezes a legend in a grid fieldset.
+    return html`<div class="${'field choice ' + (cls || '')}" role="radiogroup" aria-labelledby="${'lbl-' + name}"><span class="eyebrow" id="${'lbl-' + name}">${label}</span><div class="choices">
       ${options.map(function (o) {
         return html`<label class="choice-chip"><input type="radio" name="${name}" value="${o}"${current === o ? D.raw(' checked') : ''}>${CAT_PICT[o] && name === 'category' ? D.icon(CAT_PICT[o]) : ''}<span>${o}</span></label>`;
-      })}</div></fieldset>`;
+      })}</div></div>`;
   }
   function selectField(name, label, options, current) {
     return html`<label class="field"><span class="eyebrow">${label}</span><select name="${name}">
@@ -159,7 +160,7 @@
           <div class="amount-row">
             <label class="field amount-field"><span class="eyebrow">Amount</span>
               <span class="amount-input"><span class="cur" aria-hidden="true" data-cur>${v.currency === 'USD' ? '$' : '¥'}</span>
-              <input name="amount" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="11" value="${v.amount}" placeholder="0" aria-describedby="amount-error"${isNew ? D.raw(' autofocus') : ''}></span></label>
+              <input name="amount" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="11" size="7" value="${v.amount}" placeholder="0" aria-describedby="amount-error"${isNew ? D.raw(' autofocus') : ''}></span></label>
             ${selectField('currency', 'Currency', B.CURRENCIES, v.currency)}
           </div>
           <p class="form-error" id="amount-error" role="alert" data-error hidden></p>
@@ -199,7 +200,7 @@
       body: html`<section class="settings-group calc" data-hold>
           <label class="field amount-field"><span class="eyebrow">Price</span>
             <span class="amount-input"><span class="cur" aria-hidden="true">¥</span>
-            <input name="price" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="11" data-action="calc-input" placeholder="0" autofocus></span></label>
+            <input name="price" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="11" size="7" data-action="calc-input" placeholder="0" autofocus></span></label>
           <div class="calc-out" aria-live="polite" data-calc-out>${calcResult(S, '')}</div>
           <button class="btn btn-primary" type="button" data-action="calc-log">Log it</button>
         </section>

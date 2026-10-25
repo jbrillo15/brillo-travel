@@ -4,6 +4,12 @@ Versions follow semantic versioning. 0.x during the build; 1.0.0 is the trip
 release. The version here must match `js/config.js` and the service worker
 cache name (a unit test checks this).
 
+## 0.3.1
+
+Add-expense form fixes for iPhone.
+
+- The Category, Paid with and Paid by labels read sideways on iPhone, and the stretched label covered the Amount field so it couldn't be tapped. They're plain labels now, and the amount field keeps its width at large Text Size settings.
+
 ## 0.3.0
 
 Budget.
