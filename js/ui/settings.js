@@ -93,6 +93,7 @@
             <input type="datetime-local" data-action="simulate-set" value="${sim ? sim.inputValue : ''}"></label>
           ${sim ? html`<p class="secondary">Simulating ${sim.label} (Japan). <button class="btn btn-quiet" type="button" data-action="simulate-clear">Use real time</button></p>` : ''}
           <div class="row-between"><span class="secondary">Outbox: ${S.status.pending || 0} waiting · ${S.status.rejected || 0} refused</span></div>
+          <button class="btn" type="button" data-action="tap-debug">${S.tapDebug ? 'Turn off tap debug' : 'Turn on tap debug'}</button>
           <button class="btn" type="button" data-action="reset-local">Reset local data</button>
         </section>` : ''}`
     };

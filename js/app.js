@@ -452,6 +452,9 @@
       checkForUpdate();
     } else if (a === 'simulate-clear') {
       S.db.del('prefs', 'simulate').then(function () { applySimulation(null); render(); }, render);
+    } else if (a === 'tap-debug') {
+      try { localStorage.setItem('brillo.tapdebug', S.tapDebug ? '' : '1'); } catch (e) { /* ignore */ }
+      location.reload();
     } else if (a === 'reset-local') {
       if (!confirm('Erase everything this app saved on this phone, including the setup code? The sheet is not touched.')) return;
       S.db.close();
@@ -542,6 +545,34 @@
     }, 60000);
   }
 
+  // ---------- tap debug (staging only; Developer settings) ----------
+  // Shows on screen what each tap hits and what gets focus, to diagnose phone-only input bugs.
+  var dbgLog = [], dbgPanel = null;
+  function dbgDesc(el) {
+    if (!el || !el.tagName) return String(el);
+    var cs = getComputedStyle(el);
+    return el.tagName.toLowerCase() + (el.name ? '[' + el.name + ']' : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.split(' ').slice(0, 2).join('.') : '') +
+      (cs.pointerEvents !== 'auto' ? ' pe:' + cs.pointerEvents : '') + (el.disabled ? ' disabled' : '') + (el.readOnly ? ' ro' : '');
+  }
+  function dbg(msg) {
+    if (!S.tapDebug) return;
+    dbgLog.push(new Date().toISOString().slice(17, 22) + ' ' + msg);
+    dbgLog = dbgLog.slice(-12);
+    if (!dbgPanel) { dbgPanel = document.createElement('pre'); dbgPanel.className = 'tap-debug'; document.body.appendChild(dbgPanel); }
+    dbgPanel.textContent = dbgLog.join('\n');
+  }
+  function startTapDebug() {
+    ['touchstart', 'touchend', 'mousedown', 'click', 'focusin', 'focusout'].forEach(function (type) {
+      document.addEventListener(type, function (e) {
+        var extra = '';
+        var t = e.changedTouches && e.changedTouches[0];
+        if (t) extra = ' @' + Math.round(t.clientX) + ',' + Math.round(t.clientY) + ' top=' + dbgDesc(document.elementFromPoint(t.clientX, t.clientY));
+        dbg(type + ' ' + dbgDesc(e.target) + extra + (e.defaultPrevented ? ' PREVENTED' : ''));
+        if (type === 'touchend') setTimeout(function () { dbg('active=' + dbgDesc(document.activeElement)); }, 350);
+      }, true);
+    });
+  }
+
   // ---------- boot ----------
   function boot() {
     root = document.getElementById('app');
@@ -563,6 +594,8 @@
       enterTimer = setTimeout(function () { root.removeAttribute('data-enter'); }, 400);
     });
 
+    try { S.tapDebug = BT.store.envFromPath(location.pathname) === 'staging' && localStorage.getItem('brillo.tapdebug') === '1'; } catch (e) { S.tapDebug = false; }
+    if (S.tapDebug) startTapDebug();
     openDb(BT.store.activeEnv()).catch(function (e) {
       S.storageError = e; S.env = BT.store.activeEnv();
     }).then(function () {

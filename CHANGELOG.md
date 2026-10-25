@@ -4,6 +4,10 @@ Versions follow semantic versioning. 0.x during the build; 1.0.0 is the trip
 release. The version here must match `js/config.js` and the service worker
 cache name (a unit test checks this).
 
+## 0.3.2
+
+Staging only: a "tap debug" switch in Settings → Developer that shows on screen what each tap reaches, to find why text boxes don't take taps on iPhone. The real-trip app never shows it.
+
 ## 0.3.1
 
 Add-expense form fixes for iPhone.
