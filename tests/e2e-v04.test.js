@@ -295,7 +295,13 @@ suite('e2e v0.4', function () {
   test('AC-C3: no Japanese voice → no Play buttons and no errors; phrases grouped, unverified labelled, full screen on tap', function () {
     return E2E.seed({ jst: '2026-11-20T10:00', snapshot: cardSnap() }).then(function () { return E2E.load(); }).then(function (w) {
       fakeSpeech(w, [{ lang: 'en-US', name: 'Fake EN' }]);
-      return E2E.click(w, '.cards-btn').then(function () { return E2E.click(w, '[data-card="phrases"]'); }).then(function () {
+      return E2E.click(w, '.cards-btn').then(function () {
+        var btn = w.document.querySelector('#sheet .sheet-top .phrases-btn');
+        ok(btn && /Phrases/.test(btn.textContent), 'a Phrases button in the Cards header');
+        ok(w.document.querySelector('#sheet [data-card-view="allergy"]'), 'the allergy card is still what opens first (AC-C1)');
+        return E2E.click(w, '#sheet .sheet-top .phrases-btn');
+      }).then(function () {
+        ok(!w.document.querySelector('#sheet .sheet-top .phrases-btn'), 'no Phrases button on the phrase list itself');
         var sheet = w.document.getElementById('sheet');
         var groups = Array.prototype.map.call(sheet.querySelectorAll('.phrase-group'), function (g) { return g.getAttribute('data-phrase-group'); });
         deepEq(groups, ['Basics', 'Restaurant', 'Allergy', 'Emergency', 'Taxi'], 'category order, case-insensitive');
@@ -309,6 +315,10 @@ suite('e2e v0.4', function () {
         var maybe = Array.prototype.filter.call(sheet.querySelectorAll('.phrase'), function (p) { return /Fake maybe/.test(p.innerText); })[0];
         ok(/Unverified/.test(maybe.innerText), 'unverified chip');
         ok(/Nise tabun/.test(maybe.innerText), 'romaji');
+        var say = maybe.querySelector('.romaji'), sayCs = w.getComputedStyle(say);
+        eq(sayCs.fontStyle, 'normal', 'pronunciation is upright, not italic');
+        ok(parseFloat(sayCs.fontSize) >= 17, 'pronunciation at body size or more');
+        eq(sayCs.color, 'rgb(143, 168, 255)', 'pronunciation in the section color (Basics)');
         var parts = Array.prototype.map.call(maybe.querySelector('.phrase-open').children, function (c) { return c.className; });
         deepEq(parts.slice(0, 3), ['ja', 'en-line', 'romaji'], 'Japanese, then English, then how to say it');
         var en = maybe.querySelector('.en-line'), ja = maybe.querySelector('.ja');
@@ -320,6 +330,8 @@ suite('e2e v0.4', function () {
         var card = w.document.querySelector('#sheet [data-card-view="phrase"]');
         ok(/Unverified/.test(card.innerText), 'full-screen card keeps the label');
         eq(card.querySelector('.phrase-cat').textContent, 'Basics', 'full-screen card names its section');
+        ok(/All phrases/.test(w.document.querySelector('#sheet .sheet-top .phrases-btn').textContent), 'back to all phrases from the header');
+        ok(parseFloat(w.getComputedStyle(card.querySelector('.romaji')).fontSize) >= 20, 'pronunciation large on the full-screen card');
         ok(parseFloat(w.getComputedStyle(card.querySelector('.ja-xl')).fontSize) >= 32, 'staff still get big Japanese');
         var order = Array.prototype.map.call(card.querySelectorAll('.ja-xl, .phrase-en, .romaji'), function (c) { return c.className; });
         deepEq(order, ['ja-xl', 'phrase-en', 'en romaji'], 'full-screen card: Japanese, bold English, then how to say it');
@@ -394,7 +406,12 @@ suite('e2e v0.4', function () {
       E2E.screenChecks(w);
       var sheet = w.document.getElementById('sheet');
       sheet.scrollTop = 0;
-      return E2E.click(w, '[data-action="phrase-jump"][data-cat="Hotel"]').then(function () { return E2E.wait(700); }).then(function () {
+      // Reduce Motion on: the jump is instant, so the check doesn't depend on animation frames
+      // (a hidden browser pane gets none, and a smooth scroll then never moves).
+      var realMM = w.matchMedia;
+      w.matchMedia = function (q) { return /reduced-motion: reduce/.test(q) ? { matches: true } : realMM.call(w, q); };
+      return E2E.click(w, '[data-action="phrase-jump"][data-cat="Hotel"]').then(function () { return E2E.wait(150); }).then(function () {
+        w.matchMedia = realMM;
         ok(sheet.scrollTop > 0, 'jump scrolled the sheet');
         var top = sheet.querySelector('[data-phrase-group="Hotel"]').getBoundingClientRect().top - sheet.getBoundingClientRect().top;
         ok(top < 120, 'Hotel section at the top after the jump: ' + Math.round(top));

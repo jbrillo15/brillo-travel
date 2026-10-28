@@ -554,7 +554,12 @@ a.tab { text-decoration: none; }
   padding: calc(env(safe-area-inset-top, 0px) + var(--sp-4)) 16px calc(env(safe-area-inset-bottom, 0px) + var(--sp-5)); }
 .sheet-overlay[hidden] { display: none; }
 .sheet { max-width: 30rem; margin: 0 auto; display: grid; gap: var(--sp-4); }
-.sheet-top { display: flex; justify-content: space-between; align-items: center; }
+.sheet-top { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-2); }
+.sheet-actions { display: flex; gap: var(--sp-2); align-items: center; }
+/* Phrases is the card they use most (Jordan, Oct 28): a filled button beside Close, so it's
+   one tap from the moment Cards opens and the allergy card below doesn't move. */
+.phrases-btn { padding-inline: var(--sp-4); font-weight: 700; }
+.phrases-btn svg { width: 20px; height: 20px; }
 .card-menu { display: grid; gap: var(--sp-2); }
 .card-link { min-height: var(--tap); text-align: left; padding: var(--sp-2) var(--sp-4); border-radius: 12px; border: 1px solid var(--line-strong); background: var(--surface-1); color: var(--text); font: 600 var(--fs-secondary)/1.3 var(--font-body); cursor: pointer; }
 .staff-card a.tel { text-decoration: none; }
@@ -836,7 +841,6 @@ a.quick-btn { text-decoration: none; }
 .staff-card .ja-l { font-family: var(--font-ja); font-size: var(--fs-card-ja); font-weight: 700; line-height: 1.35; }
 
 /* ---------- Phrase kit (v0.4, HANDOFF §8.6) ---------- */
-.card-link-strong { border-color: var(--text-3); }
 .phrase-kit { display: grid; gap: var(--sp-5); }
 .phrase-jump { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .phrase-group { display: grid; gap: var(--sp-2); scroll-margin-top: var(--sp-2); }
@@ -858,11 +862,13 @@ a.quick-btn { text-decoration: none; }
    largest (it's what they read), then how to say it. */
 .phrase-open .ja { font: 500 var(--fs-body)/1.4 var(--font-ja); color: var(--text-2); }
 .phrase-open .en-line { font: 700 var(--fs-title-3)/1.25 var(--font-body); color: var(--text); }
-.phrase-open .romaji { font-size: var(--fs-secondary); color: var(--text-2); font-style: italic; }
+.phrase-open .romaji { font: 650 var(--fs-body)/1.3 var(--font-body); color: var(--tone, var(--text)); letter-spacing: 0.01em; }   /* what they say out loud: big, upright, in the section color */
+.phrase-group[data-tone="allergy"] .phrase-open .romaji { color: var(--text); }   /* red stays a warning */
 .phrase-open .chip { margin-top: 4px; }
 .say-btn { min-height: var(--tap); white-space: nowrap; }
 .staff-card .say-btn { justify-self: start; background: var(--paper); color: var(--paper-ink); border-color: var(--paper-ink-2); }
-.staff-card .romaji { font-style: italic; }
+.staff-card .say { display: grid; gap: 2px; padding-top: var(--sp-2); border-top: 1px solid var(--paper-line); }
+.staff-card .romaji { font: 650 var(--fs-title-3)/1.3 var(--font-body); color: var(--paper-ink); margin: 0; }
 .staff-card .phrase-en { margin: 0; font: 700 var(--fs-title-3)/1.25 var(--font-body); color: var(--paper-ink); }   /* staff still read the big Japanese */
 .staff-card .phrase-cat { font-size: var(--fs-secondary); color: var(--paper-ink); }
 .staff-card .unverified-label { color: var(--paper-ink); text-transform: none; letter-spacing: 0; border: 1.5px dashed var(--paper-ink-2); border-radius: 4px; padding: 6px 8px; }

@@ -4,6 +4,11 @@ Versions follow semantic versioning. 0.x during the build; 1.0.0 is the trip
 release. The version here must match `js/config.js` and the service worker
 cache name (a unit test checks this).
 
+## 0.4.4
+
+- A bold **Phrases** button sits in the Cards header beside Close, so the phrase list is one tap from the moment Cards opens (the allergy card still opens first, unmoved). On a phrase it reads "All phrases".
+- The pronunciation, what you say out loud, is now large and upright in the section's color (white in the Allergy section, where red means a warning). On a phrase opened full screen it's large too, under a "Say it" label.
+
 ## 0.4.3
 
 Phrases read in a new order: the Japanese on top, then the English in bold as the line that stands out, then how to say it. On a phrase opened full screen the Japanese stays big for staff, with the English in bold under it.

@@ -111,7 +111,7 @@
       ${p.verified ? '' : html`<div class="label unverified-label">${UNVERIFIED}</div>`}
       <div class="ja-xl" lang="ja">${p.japanese}</div>
       <p class="phrase-en">${p.english}</p>
-      ${p.romaji ? html`<p class="en romaji">${p.romaji}</p>` : ''}
+      ${p.romaji ? html`<div class="say"><span class="label">Say it</span><p class="en romaji">${p.romaji}</p></div>` : ''}
       ${sayBtn(p)}
       <p class="hint" data-wake-hint>Turn brightness up so staff can read it.</p>
     </div>`;
@@ -195,8 +195,6 @@
     var tonight = M.tonightHotel(vm, day) || vm.hotels.filter(function (h) { return h.checkIn >= day; })[0];
     var menu = [];
     if (view) menu.push(html`<button class="card-link" type="button" data-action="cards">Allergy card</button>`);
-    if (sheet.card === 'phrase') menu.push(html`<button class="card-link" type="button" data-action="cards" data-card="phrases">‹ All phrases</button>`);
-    else if (sheet.card !== 'phrases') menu.push(html`<button class="card-link card-link-strong" type="button" data-action="cards" data-card="phrases">Phrases</button>`);
     if (tonight && !(sheet.card === 'hotel' && focus && focus.id === tonight.id)) {
       menu.push(html`<button class="card-link" type="button" data-action="cards" data-card="hotel" data-id="${tonight.id}">${M.tonightHotel(vm, day) ? 'Tonight\'s hotel' : 'Next hotel'} · ${tonight.nameEn}</button>`);
     }
@@ -207,7 +205,11 @@
       if (l.booking) menu.push(html`<button class="card-link" type="button" data-action="cards" data-card="ref" data-kind="leg" data-id="${l.id}">Booking ref · ${(l.number || l.type)} ${T.fmtDay(l.departDate)}</button>`);
     });
     return html`<div class="sheet" role="dialog" aria-modal="true" aria-label="Cards">
-      <div class="sheet-top"><h2>${sheet.card === 'phrases' ? 'Phrases' : 'Cards'}</h2><button class="btn" type="button" data-action="close-sheet">Close</button></div>
+      <div class="sheet-top"><h2>${sheet.card === 'phrases' ? 'Phrases' : 'Cards'}</h2>
+        <div class="sheet-actions">
+          ${sheet.card === 'phrases' ? '' : html`<button class="btn btn-primary phrases-btn" type="button" data-action="cards" data-card="phrases">${D.icon('i-phrase')}${sheet.card === 'phrase' ? 'All phrases' : 'Phrases'}</button>`}
+          <button class="btn" type="button" data-action="close-sheet">Close</button>
+        </div></div>
       ${view || allergyCard(vm)}
       ${menu.length ? html`<div class="card-menu"><span class="eyebrow">Other cards</span>${menu}</div>` : ''}
     </div>`;
