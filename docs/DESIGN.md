@@ -2,11 +2,13 @@
 
 | | |
 |---|---|
-| **Status** | Draft 0.5, Oct 15, 2026 ("Metro", Direction A of the Oct 15 direction study, chosen by Jordan). Supersedes 0.4. Formal approval by Jordan and Lindsay still pending (Phase 0 gate, HANDOFF §14). |
+| **Status** | Draft 0.6, Oct 28, 2026 ("Metro" plus six category colors, palette A, chosen by Jordan). 0.5 was Oct 15 ("Metro", Direction A of the Oct 15 direction study). Supersedes 0.4. Formal approval by Jordan and Lindsay still pending (Phase 0 gate, HANDOFF §14). |
 | **Implements** | HANDOFF §9 (design brief), §8 (screens), §7 (`css/app.css`). |
 | **Source of truth** | Tokens and component styles live in `css/app.css`. This file explains them. If the two disagree, fix whichever is wrong and rerun the contrast check. |
 | **Preview** | `docs/style-preview.html` uses `css/app.css` directly. **It is git-ignored**: it uses real trip details so it feels like theirs, and the repo is public. Jordan reviews it through a private link. |
 | **Contrast check** | `python3 tests/contrast_check.py`. Exits 1 on any failure. Rerun after any color change and paste its output into §3. |
+
+**Changes in 0.6 (Oct 28, Jordan):** Jordan wanted more color on the dark shell. Six **category colors** (palette A, "vivid") say what kind of thing something is: Food & drink, Sights, Shopping, Getting around, Stay, Basics & help (§2). They tint pictogram tiles, card edges, chips and section headers (§6) and never the rail, the station marks or any state. City colors still mean where; the reserved meanings are unchanged, except that allergy red may also edge the Allergy section of the phrase kit (§2). Contrast and distinctness are checked (§3).
 
 **Changes in 0.5 (Oct 15, "Metro", Jordan):** Jordan found 0.4 generic (the ink-navy palette, Fraunces and the line icons). He chose Direction A of a three-way study based on Japanese rail signage. Neutral charcoal shell (§2); city colors from real rail lines, as HANDOFF §9 now says (§2); Avenir Next replaces Fraunces, which is removed from the app (§4); flat panels with hairlines, and glows cut to a faint top light (§5–6); circle station marks with the city's initial (§6); filled pictograms on line-color tiles (§7); the Now glow no longer breathes (§8). Contrast: 89 of 89 pass (§3).
 
@@ -16,7 +18,7 @@ Earlier direction (Oct 13): a dark shell, a serif for headings, and custom picto
 
 ## 1. Principles
 
-1. **Color carries meaning.** Each line color has one job (§2). If a new element needs color, it borrows an existing meaning or stays neutral. Panels are flat. The only tints are a faint city top light behind the header and a corner light on tonight's hotel, and the contrast check tests every text color at their peaks (§3).
+1. **Color carries meaning.** Two families: city line colors say *where* (§2 Places), category colors say *what kind of thing* (§2 Categories, 0.6). Each color has one job. If a new element needs color, it borrows one of these meanings or stays neutral. Panels are flat. The only tints are a faint city top light behind the header and a corner light on tonight's hotel, and the contrast check tests every text color at their peaks (§3).
 2. **The day is a metro line.** The itinerary is drawn as a thick line in the city's color with white stations, like a metro map. The day badge copies Tokyo Metro station marks: a white disc ringed in the line color, with a letter over a number (`K 03`). The letter is the city's initial, not a real line letter. This is the app's signature.
 3. **Pictograms, not emoji.** A small custom set of solid pictograms in the manner of Japanese public signage (JIS Z8210, §7). On itinerary items they sit on a line-color tile. Icons sit next to words to speed up scanning. They never replace a label.
 4. **Staff cards break the theme.** Anything a Japanese speaker reads across a counter is paper-white, near-black and huge.
@@ -56,6 +58,21 @@ All values are in `:root` in `css/app.css`.
 
 Set `.city-osaka`, `.city-kyoto`, `.city-tokyo` or `.city-travel` on a container. Children read `var(--city)`.
 
+### Categories (0.6, palette A, Jordan Oct 28)
+
+What kind of thing something is. Set `data-tone="<name>"` on a container; children read `var(--tone)`.
+
+| Token | Hex | Category | Used for |
+|---|---|---|---|
+| `--cat-food` | `#A6D65A` | Food & drink | Ideas Food, Café, Bar, Market · Restaurant phrases · Food expenses · Ramen, Sushi, Café, Convenience store searches |
+| `--cat-sights` | `#B98BFF` | Sights | Ideas Sight · Activities and Tickets expenses |
+| `--cat-shopping` | `#FF7DC8` | Shopping | Ideas Shopping · Stores phrases · Shopping and Tax refund expenses · Shopping envelope · Return packing list |
+| `--cat-around` | `#38C9E8` | Getting around | Directions and Taxi phrases · Transit expenses · Coin lockers, Restroom searches · Departure day list |
+| `--cat-stay` | `#C99A6B` | Stay | Hotel phrases · Lodging expenses · Bookings envelope · Packing list |
+| `--cat-basics` | `#8FA8FF` | Basics & help | Basics and Emergency phrases · Other ideas and expenses, ATM withdrawals · Cash on hand · ATM and Pharmacy searches (cash is one color everywhere, Jordan Oct 28) · Pre-trip list · any list or category the app doesn't know |
+
+**Where they go:** pictogram tiles (the symbol in the color on a 26% tint), a 4 px card or row edge, a soft tint behind a section header (20%) or card (9%), chip text and filter outlines. **Never** on the rail, station marks, day badges, the tab bar or any state (Now, done, budget status, sync, allergy). The Allergy phrase section uses `--allergy` instead (Reserved meanings).
+
 ### Depth (0.5)
 
 | Token | Value | Role |
@@ -72,7 +89,7 @@ No shadows: panels are flat, separated by 1 px hairlines.
 | `--ok` | `#74D3B8` | On track (budget); done (checklist tick) |
 | `--close` | `#F2A469` | Getting close (budget); overdue (checklist); allergy **Caution**. Sharing one color here is a proposal; see §10. |
 | `--over` | `#FF8F8F` | Over budget. The meter also gets a diagonal stripe, so the state doesn't depend on color. |
-| `--allergy` | `#FF5A2E` | **Allergy danger only**: the High badge and the header band of the verified allergy card. Nothing else uses it. (Jordan's call, Oct 13: the card counts as danger however it was opened. Caution badges stay amber.) |
+| `--allergy` | `#FF5A2E` | **Allergy danger only**: the High badge, the header band of the verified allergy card, and (0.6) the Allergy section of the phrase kit: its header edge, a 20% header tint, the line beside its phrases and its jump-button label. Nothing else uses it. (Jordan's call, Oct 13: the card counts as danger however it was opened. Caution badges stay amber.) |
 
 ### Staff cards (light)
 
@@ -88,7 +105,7 @@ No shadows: panels are flat, separated by 1 px hairlines.
 
 ## 3. Contrast results
 
-Target: WCAG AA. 4.5:1 for text, 3:1 for large text and UI marks (pictograms, meter fills, rings). Generated by `tests/contrast_check.py` on Oct 15, 2026. **89 of 89 pass.** `mix:a:pct:b` rows are CSS `color-mix(in srgb, …)` results. Named surfaces such as `kyoto-top` or `osaka-hotel` are the brightest point of a tint (the script's `DERIVED` list): the 14% top light behind the header and the 9% corner light on tonight's hotel. The hotel light sits bottom-right, away from the `--text-3` "Tonight" eyebrow, so only `--text` and `--text-2` are checked on it.
+Target: WCAG AA. 4.5:1 for text, 3:1 for large text and UI marks (pictograms, meter fills, rings). Generated by `tests/contrast_check.py` on Oct 15, 2026 (89 pairs); **re-run Oct 28 for 0.6: 158 of 158 pass**, the new rows covering the six category colors on every surface they sit on or tint (tile, edge, chip, filter and jump labels on the button fill, pressed filter, phrase header, quick search, idea wash, and the amber Caution badge on each wash). `mix:a:pct:b` rows are CSS `color-mix(in srgb, …)` results. Named surfaces such as `kyoto-top` or `osaka-hotel` are the brightest point of a tint (the script's `DERIVED` list): the 14% top light behind the header and the 9% corner light on tonight's hotel. The hotel light sits bottom-right, away from the `--text-3` "Tonight" eyebrow, so only `--text` and `--text-2` are checked on it.
 
 | Foreground | Background | Ratio | Needs | Result | Used for |
 |---|---|---|---|---|---|
@@ -192,6 +209,13 @@ Closest meaning-color pairs (CIE76 ΔE, minimum 20):
 
 The closest pairs (Now vs close, Tokyo vs travel) never appear in the same component, and both always come with a text label.
 
+Closest category pairs (0.6, CIE76 ΔE, minimum 15). A category color can sit beside a state color (Packing's tan next to amber "overdue", a food idea's amber Caution badge), but every category color has its own text label and every state its own words, so no meaning rests on telling two hues apart:
+
+- `cat-sights` vs `tokyo`: 15.4 (a Sights idea on a Tokyo day: the city color is only on the rail and header light, the idea's violet only on its card)
+- `cat-stay` vs `close`: 16.9
+- `cat-basics` vs `travel`: 17.6
+- `cat-shopping` vs `osaka`: 17.8
+
 ---
 
 ## 4. Type
@@ -242,8 +266,10 @@ All ten components from HANDOFF §9 are in the preview, plus the remaining staff
 | 4 | **Hotel card (in-app)** | `.hotel` | A faint city light in the bottom-right corner (9%), away from the eyebrow. "Tonight" eyebrow, EN name in Avenir Next 600, JA name, check-in, check-out and breakfast. **Show in Japanese** opens the staff hotel card. **Route home** is added after 6 PM JST only. |
 | 5 | **Budget meter** | `.budget[data-state=ok/close/over]` | Big "left today" number (Avenir Next, tabular), ≈ USD, meter (`--fill`), spent vs allowance, trip left. Over gets a stripe; negative amounts use a true minus sign (−). |
 | 6 | **Checklist row** | `.checks` > `.check(.is-done)` | Whole row toggles; the ring is a 44 pt button with `aria-pressed`. Done: mint fill and tick, label struck through. Meta: owner · due. Overdue in amber. Grouped under `.bag-head` (bag pictogram + name + count). Bag names follow HANDOFF §5. |
-| 7 | **Idea card** | `.idea` | Category pictogram tile, name EN and JA, distance (walk minutes at 80 m/min, then meters), category chip, why, hours/notes, allergy note with badge (food places), and Directions, Add to a day, Done, Skip (HANDOFF §8.5). |
-| — | Quick searches | `.quick` > `.quick-btn(.caution)` | Pictogram tiles opening Google Maps searches: Ramen, Sushi, Café, Convenience store, ATM, Pharmacy, Coin lockers, Restroom (§8.5 wording). 4 across at default Text Size, 3 across at larger sizes; labels wrap inside the tile. **Sushi** has an amber (Caution) edge and shows an allergy-card reminder before opening Maps. |
+| 7 | **Idea card** | `.idea[data-tone]` | Category color (0.6): 4 px left edge, a 9% wash, the tile and the category chip. Category pictogram tile, name EN and JA, distance (walk minutes at 80 m/min, then meters), category chip, why, hours/notes, allergy note with badge (food places), and Directions, Add to a day, Done, Skip (HANDOFF §8.5). |
+| — | Quick searches | `.quick` > `.quick-btn(.caution)` | Pictogram tiles opening Google Maps searches: Ramen, Sushi, Café, Convenience store, ATM, Pharmacy, Coin lockers, Restroom (§8.5 wording). 4 across at default Text Size, 3 across at larger sizes; labels wrap inside the tile. **Sushi** has an amber (Caution) edge and shows an allergy-card reminder before opening Maps. Each tile takes its category color (0.6): symbol, a 14% fill and a 60% edge; Sushi keeps the amber edge. |
+| — | Phrase kit | `.phrase-kit` > `.phrase-group[data-tone]` | One panel per category: a big header pinned while its phrases scroll (`position: sticky`), 6 px edge and 20% tint in the category color, phrase count, and a jump-button row. Allergy uses `--allergy`. |
+| — | Budget envelopes, expense rows, list rows | `.envelope` / `.exp-row` / `.list-row` `[data-tone]` | Envelopes: 3 px top edge, eyebrow and tile in the category color. Expense rows: the category tile. List rows: 4 px left edge and tile. Meter and progress fills keep their state colors. |
 | 8 | **Allergy card (staff)** | `.staff-card` | **Two states.** *Not set up* (`.is-unset`): dashed border, no band, no Japanese sentence. It says the card appears once the verified text is in the sheet, points to the printed card and the photo in Favorites, and still shows the allergen words from HANDOFF §8.6. *Verified*: vermilion band, the professional text at 34 pt, allergen words at 44 pt. Requests a screen wake lock; otherwise says to turn brightness up. Unverified text never renders (AC-C2). The band's Japanese heading also comes from the professional card, so it reads in English until then. |
 | — | Hotel / taxi card (staff) | `.staff-card` with `.ja-xl` + `.ja-addr` | "Please take me to this hotel" in Japanese, name and **address at 34 pt (floor 32, AC-T3)**, and phone. The same layout serves the taxi card for any place. |
 | — | Booking-ref card (staff) | `.staff-card` with `.ref` | The confirmation number at 44 pt, tabular, **grouped in fours** by the app so long hotel numbers break between groups and are easy to read aloud. Shows what it's for and the dates (§8.1 "Show booking ref"). |
@@ -260,12 +286,13 @@ All ten components from HANDOFF §9 are in the preview, plus the remaining staff
 - **Trip day rows:** the station mark carries the color; the city name is in the line color with its Japanese name (大阪 / 京都 / 東京) beside it. Today's row adds a neutral outline.
 - **Sync pill:** a hairline chip, neutral (principle 5).
 - **Staff cards:** unchanged (paper-white, principle 4).
+- **Category color (0.6):** see §2 Categories for where it may and may not go.
 
 ## 7. Pictograms
 
 Drawn for Brillo: 24 × 24 inline SVG `<symbol>`s as solid silhouettes in the JIS Z8210 manner (`fill: currentColor`, with knocked-out details). A few use bold strokes for thin parts: the budget tab icon, the sun's rays, and the handles, steam and legs on the café, bag, train and backpack. In the app the sprite lives in `index.html`, so icons work offline with no extra requests. They are decorative (`aria-hidden`) because a text label always sits beside them.
 
-**Color rule:** on itinerary stops, Now/Next titles and travel legs, the pictogram is drawn in `--on-fill` on a 1.5 rem tile in the city color (3:1 checked); a done stop's tile turns neutral. `.pict-tile` is always neutral (`--text`), even inside a `.city-*` screen, so an idea tile on Today stays neutral. Pictograms never use a reserved meaning color, except the Sushi quick search's amber edge, which is the Caution meaning.
+**Color rule:** on itinerary stops, Now/Next titles and travel legs, the pictogram is drawn in `--on-fill` on a 1.5 rem tile in the city color (3:1 checked); a done stop's tile turns neutral. Everywhere else (0.6), a `.pict-tile` inside a `[data-tone]` takes its category color (§2 Categories); without one it stays neutral (`--text`), even inside a `.city-*` screen. Pictograms never use a reserved meaning color, except the Sushi quick search's amber edge, which is the Caution meaning.
 
 | Symbol | Means | Driven by (sheet field, HANDOFF §5) |
 |---|---|---|

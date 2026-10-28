@@ -39,8 +39,8 @@
     </section>`;
   }
 
-  function envelopeCard(title, pict, main, lines) {
-    return html`<section class="envelope">
+  function envelopeCard(title, pict, main, lines, tone) {
+    return html`<section class="envelope" data-tone="${tone}">
       <div class="env-top"><span class="pict-tile" aria-hidden="true">${D.icon(pict)}</span><span class="eyebrow">${title}</span></div>
       <div class="env-main num">${main}</div>
       ${lines.filter(Boolean).map(function (l) { return html`<div class="secondary env-line">${l}</div>`; })}
@@ -52,7 +52,7 @@
       s.budget === null ? 'No Shopping budget in the sheet yet' : s.left < 0 ? html`<span class="over-text">${B.yen(-s.left)} over</span> ${'of ' + B.yen(s.budget)}` : B.yen(s.left) + ' left of ' + B.yen(s.budget),
       s.pendingRefunds ? s.pendingRefunds + ' tax-free ' + (s.pendingRefunds === 1 ? 'purchase' : 'purchases') + ' waiting for a refund' : '',
       s.refunds ? B.yen(s.refunds) + ' refunded' : ''
-    ]);
+    ], BT.model.tone('envelope', 'Shopping'));
   }
 
   function cashCard(c) {
@@ -60,11 +60,11 @@
       c.startingSet ? 'Started with ' + B.yen(c.starting) : 'No Starting cash in the sheet yet, so this counts from ¥0',
       c.withdrawals ? '+ ' + B.yen(c.withdrawals) + ' from ATMs' : '',
       c.spent ? '− ' + B.yen(c.spent) + ' paid in cash' : ''
-    ]);
+    ], BT.model.tone('envelope', 'Cash'));
   }
 
   function bookingsCard(b, r) {
-    return html`<section class="envelope">
+    return html`<section class="envelope" data-tone="${BT.model.tone('envelope', 'Bookings')}">
       <div class="env-top"><span class="pict-tile" aria-hidden="true">${D.icon('p-ticket')}</span><span class="eyebrow">Bookings · not in daily</span></div>
       <div class="env-main num">${B.yen(b.paidJpy)}<small> paid</small></div>
       ${b.paid.length ? html`<ul class="env-list">${b.paid.map(function (e) {
@@ -84,7 +84,7 @@
     var parts = [];
     meta.filter(Boolean).forEach(function (m, i) { if (i) parts.push(' · '); parts.push(m); });
     var refund = e.category === 'Tax refund', atm = e.envelope === 'Cash movement';
-    return html`<li><a class="exp-row" href="${'#/expense/' + encodeURIComponent(e.id)}" data-id="${e.id}">
+    return html`<li><a class="exp-row" href="${'#/expense/' + encodeURIComponent(e.id)}" data-id="${e.id}" data-tone="${BT.model.tone('expense', e.category) || 'basics'}">
       <span class="pict-tile" aria-hidden="true">${D.icon(CAT_PICT[e.category] || 'p-other')}</span>
       <span class="exp-main"><span class="exp-title">${e.note || e.category}</span><span class="secondary">${e.note ? e.category + ' · ' : ''}${parts}</span></span>
       <span class="exp-amt num">${refund ? '+' : ''}${B.money(e)}${atm ? html`<small>to cash</small>` : ''}</span>

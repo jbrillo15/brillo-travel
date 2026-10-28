@@ -35,7 +35,7 @@
         ${rejected ? html`<a class="info-row issue-row" href="#/sync-issues"><span>${rejected === 1 ? '1 change' : rejected + ' changes'} the sheet didn't accept</span><b>Review</b></a>` : ''}
         ${ls.length ? html`<ul class="day-list list-index">${ls.map(function (l) {
           var total = l.items.length;
-          return html`<li><a class="day-row list-row" href="${listHref(l.name)}">
+          return html`<li><a class="day-row list-row" href="${listHref(l.name)}" data-tone="${M.tone('list', l.name) || 'basics'}">
             <span class="pict-tile" aria-hidden="true">${D.icon(LIST_PICT[l.name] || 'i-lists')}</span>
             <span class="day-main"><span class="list-name">${l.name}</span>
               <span class="secondary num">${l.done} of ${total} done${l.overdue ? html` · <span class="overdue">${l.overdue} overdue</span>` : ''}</span>

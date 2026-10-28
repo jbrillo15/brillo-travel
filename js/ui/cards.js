@@ -74,16 +74,28 @@
     } catch (e) { /* no sound; the text is still on screen */ }
   }
   var UNVERIFIED = 'Unverified: not word for word from a published source.';
+  // The section a phrase belongs to, spelled as its header ("restaurant" in the sheet → Restaurant).
+  function phraseCat(p) {
+    return PHRASE_ORDER.filter(function (k) { return k.toLowerCase() === String(p.category || '').trim().toLowerCase(); })[0] || 'Other';
+  }
   function phraseList(vm) {
     var by = {};
     vm.phrases.filter(function (p) { return p.japanese; }).forEach(function (p) {
-      var c = PHRASE_ORDER.filter(function (k) { return k.toLowerCase() === String(p.category || '').toLowerCase(); })[0] || 'Other';
+      var c = phraseCat(p);
       (by[c] = by[c] || []).push(p);
     });
     var cats = PHRASE_ORDER.concat(['Other']).filter(function (c) { return by[c]; });
     if (!cats.length) return html`<p class="empty">No phrases in the sheet yet. They come from the Phrases tab.</p>`;
-    return html`<div class="phrase-kit">${cats.map(function (c) {
-      return html`<section class="phrase-group"><h3 class="eyebrow">${c}</h3><ul class="phrases">${by[c].map(function (p) {
+    // Each category is its own panel with a header that stays pinned while you scroll
+    // through it, plus a row of jump buttons, so it's always clear which set a phrase is in.
+    return html`<div class="phrase-kit">
+      <nav class="phrase-jump" aria-label="Jump to a phrase section">${cats.map(function (c) {
+        return html`<button class="btn filter-chip" type="button" data-action="phrase-jump" data-cat="${c}" data-tone="${M.tone('phrase', c) || 'basics'}">${c}</button>`;
+      })}</nav>
+      ${cats.map(function (c) {
+      return html`<section class="${'phrase-group' + (c === 'Allergy' ? ' is-allergy' : '')}" data-phrase-group="${c}" data-tone="${M.tone('phrase', c) || 'basics'}" aria-label="${c + ' phrases'}">
+        <h3 class="phrase-head"><span>${c}</span><span class="count">${by[c].length === 1 ? '1 phrase' : by[c].length + ' phrases'}</span></h3>
+        <ul class="phrases">${by[c].map(function (p) {
         return html`<li class="phrase"><button class="phrase-open" type="button" data-action="cards" data-card="phrase" data-id="${phraseKey(p)}">
             <span class="ja" lang="ja">${p.japanese}</span>
             ${p.romaji ? html`<span class="romaji">${p.romaji}</span>` : ''}
@@ -95,7 +107,8 @@
   }
   function phraseCard(p) {
     return html`<div class="staff-card" data-card-view="phrase">
-      ${p.verified ? html`<div class="label">${p.category || 'Phrase'}</div>` : html`<div class="label unverified-label">${UNVERIFIED}</div>`}
+      <div class="label phrase-cat">${phraseCat(p)}</div>
+      ${p.verified ? '' : html`<div class="label unverified-label">${UNVERIFIED}</div>`}
       <div class="ja-xl" lang="ja">${p.japanese}</div>
       ${p.romaji ? html`<p class="en romaji">${p.romaji}</p>` : ''}
       <p class="en">${p.english}</p>

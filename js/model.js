@@ -149,6 +149,17 @@
     return (vm.ideas || []).filter(function (i) { return i.status === 'Planned' && i.plannedDate === day; });
   }
 
+  // ---------- category colors (DESIGN §2 Categories, 0.6) ----------
+  var TONES = {
+    idea: { Food: 'food', 'Café': 'food', Bar: 'food', Market: 'food', Sight: 'sights', Shopping: 'shopping', Other: 'basics' },
+    expense: { Food: 'food', Transit: 'around', Activities: 'sights', Tickets: 'sights', Shopping: 'shopping', 'Tax refund': 'shopping',
+      Lodging: 'stay', Other: 'basics', 'ATM withdrawal': 'basics' },
+    phrase: { Basics: 'basics', Restaurant: 'food', Allergy: 'allergy', Directions: 'around', Taxi: 'around', Stores: 'shopping', Hotel: 'stay', Emergency: 'basics' },
+    list: { 'Pre-trip': 'basics', Packing: 'stay', 'Departure day': 'around', 'Return packing': 'shopping' },
+    envelope: { Shopping: 'shopping', Cash: 'basics', Bookings: 'stay' }
+  };
+  function tone(kind, key) { return (TONES[kind] && TONES[kind][key]) || null; }
+
   function groupRef(ref) { return String(ref || '').replace(/\s+/g, '').replace(/(.{4})(?=.)/g, '$1 '); }
 
   function semverLess(a, b) {
@@ -200,6 +211,6 @@
     tonightHotel: tonightHotel, checkoutHotel: checkoutHotel, cityFor: cityFor,
     cityClass: knownCityClass, cityCode: cityCode, cityJa: cityJa, legsOn: legsOn, tripDays: tripDays,
     pict: pict, legPict: legPict, allergyCard: allergyCard, medicalCards: medicalCards, groupRef: groupRef, semverLess: semverLess,
-    ideaPict: ideaPict, isOpenIdea: isOpenIdea, plannedOn: plannedOn, IDEA_CATS: IDEA_CATS
+    ideaPict: ideaPict, isOpenIdea: isOpenIdea, plannedOn: plannedOn, IDEA_CATS: IDEA_CATS, tone: tone
   };
 })();

@@ -297,8 +297,14 @@ suite('e2e v0.4', function () {
       fakeSpeech(w, [{ lang: 'en-US', name: 'Fake EN' }]);
       return E2E.click(w, '.cards-btn').then(function () { return E2E.click(w, '[data-card="phrases"]'); }).then(function () {
         var sheet = w.document.getElementById('sheet');
-        var groups = Array.prototype.map.call(sheet.querySelectorAll('.phrase-group h3'), function (h) { return h.textContent; });
+        var groups = Array.prototype.map.call(sheet.querySelectorAll('.phrase-group'), function (g) { return g.getAttribute('data-phrase-group'); });
         deepEq(groups, ['Basics', 'Restaurant', 'Allergy', 'Emergency', 'Taxi'], 'category order, case-insensitive');
+        var head = sheet.querySelector('[data-phrase-group="Basics"] .phrase-head');
+        ok(/Basics/.test(head.textContent) && /2 phrases/.test(head.textContent), head.textContent);
+        eq(w.getComputedStyle(head).position, 'sticky', 'section header stays pinned while its phrases scroll');
+        ok(parseFloat(w.getComputedStyle(head).fontSize) >= 24, 'header is big');
+        ok(sheet.querySelector('[data-phrase-group="Allergy"]').classList.contains('is-allergy'));
+        deepEq(Array.prototype.map.call(sheet.querySelectorAll('[data-action="phrase-jump"]'), function (b) { return b.textContent; }), groups, 'a jump button per section');
         eq(sheet.querySelectorAll('[data-action="say"]').length, 0, 'no Play without a Japanese voice');
         var maybe = Array.prototype.filter.call(sheet.querySelectorAll('.phrase'), function (p) { return /Fake maybe/.test(p.innerText); })[0];
         ok(/Unverified/.test(maybe.innerText), 'unverified chip');
@@ -308,6 +314,7 @@ suite('e2e v0.4', function () {
       }).then(function () {
         var card = w.document.querySelector('#sheet [data-card-view="phrase"]');
         ok(/Unverified/.test(card.innerText), 'full-screen card keeps the label');
+        eq(card.querySelector('.phrase-cat').textContent, 'Basics', 'full-screen card names its section');
         ok(parseFloat(w.getComputedStyle(card.querySelector('.ja-xl')).fontSize) >= 32);
       });
     });
@@ -333,6 +340,79 @@ suite('e2e v0.4', function () {
         var t = w.document.querySelector('#sheet [data-card-view="taxi"]').innerText;
         ok(/ここまで/.test(t) && /テスト神社/.test(t) && /Fake shrine/.test(t), t);
       });
+    });
+  });
+
+  test('0.6 category colors: same category, same color on Nearby, Phrases, Budget and Lists; the rail keeps city color', function () {
+    var LIME = 'rgb(166, 214, 90)', VIOLET = 'rgb(185, 139, 255)', PINK = 'rgb(255, 125, 200)', CYAN = 'rgb(56, 201, 232)', TAN = 'rgb(201, 154, 107)', PERI = 'rgb(143, 168, 255)';
+    var snap = E2E.snapshot(function (raw) {
+      E2E.withLists(raw); E2E.withExpenses(raw); FIXTURES.withIdeas(raw);
+      raw.Phrases.values.push(['ph_t1', 'restaurant', 'Fake menu', '偽メニュー', '', false, true, 'src'], ['ph_t2', 'Allergy', 'Fake allergy', '偽アレルギー', '', false, true, 'src'],
+        ['ph_t3', 'Stores', 'Fake store', '偽店', '', false, true, 'src'], ['ph_t4', 'Hotel', 'Fake hotel', '偽ホテル', '', false, true, 'src'],
+        ['ph_t5', 'Directions', 'Fake way', '偽道', '', false, true, 'src']);
+      raw.Ideas.values.push(['id_f9', 'Fake mall', 'テストモール', 'Osaka', 'Namba', 'Shopping', 34.6650, 135.5000, '', 'Fake why', '', '', 'Curated', 'Idea', '', '', '', false]);
+      raw.Checklists.values.push(['ck_r1', 'Return packing', 'Fake souvenirs', 'Both', 'Suitcase', '', false, '', '', '', 80, '', false]);
+      raw.Expenses.values.push(
+        ['ex_t1', '2026-11-21T04:00:00Z', '2026-11-21', 900, 'JPY', 'Daily', 'Transit', 'Suica', 'Jordan', 'Fake train', false, 'n/a', 'jordan-iphone', '', false],
+        ['ex_t2', '2026-11-21T04:10:00Z', '2026-11-21', 1500, 'JPY', 'Shopping', 'Tax refund', 'Card', 'Jordan', 'Fake refund', false, 'n/a', 'jordan-iphone', '', false],
+        ['ex_t3', '2026-10-02T04:10:00Z', '2026-10-02', 200, 'USD', 'Bookings', 'Lodging', 'Card', 'Jordan', 'Fake hotel deposit', false, 'n/a', 'jordan-iphone', '', false]);
+    });
+    var w;
+    function cs(sel, prop) { var el = w.document.querySelector(sel); if (!el) throw new Error('no ' + sel); return w.getComputedStyle(el)[prop]; }
+    return E2E.seed({ jst: '2026-11-21T14:00', owner: 'Jordan', snapshot: snap }).then(function () { return E2E.load(); }).then(function (win) {
+      w = win;
+      ok(!w.document.querySelector('.stop[data-tone], .line [data-tone]'), 'Today\'s rail has no category color');
+      return nearby(w, BESIDE_SHRINE);
+    }).then(function () {
+      eq(cs('.idea[data-idea="id_f3"]', 'borderLeftColor'), LIME, 'Food idea edge');
+      eq(cs('.idea[data-idea="id_f2"] .chip-tone', 'color'), VIOLET, 'Sight chip');
+      eq(cs('.idea[data-idea="id_f2"] .pict-tile', 'color'), VIOLET, 'Sight tile symbol');
+      eq(cs('.quick-btn[data-tone="around"] svg', 'color'), CYAN, 'lockers / restroom search');
+      var atm = Array.prototype.filter.call(w.document.querySelectorAll('.quick-btn'), function (b) { return /ATM/.test(b.textContent); })[0];
+      eq(w.getComputedStyle(atm.querySelector('svg')).color, PERI, 'ATM is cash: the same periwinkle as Budget');
+      eq(cs('.idea[data-idea="id_f9"]', 'borderLeftColor'), PINK, 'Shopping idea');
+      ok(w.document.querySelector('.quick-btn.caution[data-tone="food"]'), 'Sushi is food and keeps its caution edge');
+      E2E.screenChecks(w);
+      return E2E.click(w, '[data-action="nearby-cat"][data-cat="Food"]');
+    }).then(function () {
+      eq(cs('[data-action="nearby-cat"][data-cat="Food"]', 'backgroundColor'), LIME, 'pressed filter fills with its color');
+      return E2E.click(w, '.cards-btn');
+    }).then(function () { return E2E.click(w, '[data-card="phrases"]'); }).then(function () {
+      eq(cs('[data-phrase-group="Restaurant"] .phrase-head', 'borderLeftColor'), LIME, 'Restaurant phrases = food (lowercase in the sheet)');
+      eq(cs('[data-phrase-group="Allergy"] .phrase-head', 'borderLeftColor'), 'rgb(255, 90, 46)', 'Allergy keeps allergy red');
+      eq(cs('[data-phrase-group="Stores"] .phrase-head', 'borderLeftColor'), PINK, 'Stores = shopping');
+      eq(cs('[data-phrase-group="Hotel"] .phrase-head', 'borderLeftColor'), TAN, 'Hotel = stay');
+      eq(cs('[data-phrase-group="Directions"] .phrase-head', 'borderLeftColor'), CYAN, 'Directions = getting around');
+      eq(cs('[data-action="phrase-jump"][data-cat="Taxi"]', 'color'), CYAN, 'Taxi jump button = getting around');
+      E2E.screenChecks(w);
+      var sheet = w.document.getElementById('sheet');
+      sheet.scrollTop = 0;
+      return E2E.click(w, '[data-action="phrase-jump"][data-cat="Hotel"]').then(function () { return E2E.wait(700); }).then(function () {
+        ok(sheet.scrollTop > 0, 'jump scrolled the sheet');
+        var top = sheet.querySelector('[data-phrase-group="Hotel"]').getBoundingClientRect().top - sheet.getBoundingClientRect().top;
+        ok(top < 120, 'Hotel section at the top after the jump: ' + Math.round(top));
+        return E2E.click(w, '[data-card="phrase"][data-id="ph_t1"]');
+      });
+    }).then(function () {
+      eq(w.document.querySelector('#sheet .phrase-cat').textContent, 'Restaurant', 'full-screen card uses the section name');
+      return E2E.click(w, '[data-action="close-sheet"]');
+    }).then(function () { return E2E.go(w, '#/budget'); }).then(function () {
+      var envs = Array.prototype.map.call(w.document.querySelectorAll('.envelope'), function (e) { return e.getAttribute('data-tone'); });
+      deepEq(envs.sort(), ['basics', 'shopping', 'stay'], 'Shopping, Cash, Bookings envelopes');
+      eq(cs('.exp-row[data-id="ex_e1"] .pict-tile', 'color'), LIME, 'Food expense tile');
+      eq(cs('.exp-row[data-id="ex_t1"] .pict-tile', 'color'), CYAN, 'Transit expense tile');
+      eq(cs('.exp-row[data-id="ex_t2"] .pict-tile', 'color'), PINK, 'Tax refund = shopping');
+      eq(cs('.exp-row[data-id="ex_t3"] .pict-tile', 'color'), TAN, 'Lodging = stay');
+      eq(cs('.exp-row[data-id="ex_e4"] .pict-tile', 'color'), PERI, 'ATM withdrawal = basics');
+      eq(cs('.envelope[data-tone="shopping"] .eyebrow', 'color'), PINK);
+      ok(!w.document.querySelector('.budget[data-tone]'), 'the daily meter keeps its state colors');
+      E2E.screenChecks(w);
+      return E2E.go(w, '#/lists');
+    }).then(function () {
+      var rows = Array.prototype.map.call(w.document.querySelectorAll('.list-row'), function (r) { return r.querySelector('.list-name').textContent + ':' + r.getAttribute('data-tone'); });
+      deepEq(rows, ['Pre-trip:basics', 'Packing:stay', 'Departure day:around', 'Return packing:shopping'], rows.join());
+      eq(cs('.list-row[data-tone="stay"] .pict-tile', 'color'), TAN);
+      eq(cs('.list-row[data-tone="basics"] .pict-tile', 'color'), PERI);
     });
   });
 

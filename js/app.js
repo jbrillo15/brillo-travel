@@ -550,6 +550,10 @@
       S.saveError = null; render();
     } else if (/^(nearby-|idea-|quick-)/.test(a)) {
       nearbyAction(a, el);
+    } else if (a === 'phrase-jump') {
+      var group = overlay.querySelector('[data-phrase-group="' + CSS.escape(el.getAttribute('data-cat') || '') + '"]');
+      var calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (group) group.scrollIntoView({ block: 'start', behavior: calm ? 'auto' : 'smooth' });
     } else if (a === 'say') {
       BT.ui.cards.say(S, el.getAttribute('data-id'));
     } else if (a === 'cards') {

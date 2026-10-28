@@ -12,10 +12,11 @@
   var NEAR_COUNT = 15;
   var CITY_ORDER = ['Osaka', 'Kyoto', 'Tokyo'];
   // Search terms in Japanese: Google Maps in Japan finds local places better with them.
+  // [label, search term, pictogram, category color (DESIGN §2), needs the allergy reminder]
   var QUICK = [
-    ['Ramen', 'ラーメン', 'p-food'], ['Sushi', '寿司', 'p-sushi', true], ['Café', 'カフェ', 'p-cafe'],
-    ['Convenience store', 'コンビニ', 'p-store'], ['ATM', 'ATM', 'p-yen'], ['Pharmacy', '薬局', 'p-pill'],
-    ['Coin lockers', 'コインロッカー', 'p-locker'], ['Restroom', 'トイレ', 'p-restroom']
+    ['Ramen', 'ラーメン', 'p-food', 'food'], ['Sushi', '寿司', 'p-sushi', 'food', true], ['Café', 'カフェ', 'p-cafe', 'food'],
+    ['Convenience store', 'コンビニ', 'p-store', 'food'], ['ATM', 'ATM', 'p-yen', 'basics'], ['Pharmacy', '薬局', 'p-pill', 'basics'],
+    ['Coin lockers', 'コインロッカー', 'p-locker', 'around'], ['Restroom', 'トイレ', 'p-restroom', 'around']
   ];
   var FOOD = { Food: 1, 'Café': 1, Bar: 1, Market: 1 };
 
@@ -95,13 +96,13 @@
     var dir = L.directions(destination(i));
     var status = i.status === 'Planned' && i.plannedDate ? 'Planned · ' + T.fmtDay(i.plannedDate)
       : i.status === 'Done' ? 'Done' : i.status === 'Skip' ? 'Skipped' : '';
-    return html`<article class="idea${i.pending ? ' is-pending' : ''}" data-idea="${i.id}">
+    return html`<article class="idea${i.pending ? ' is-pending' : ''}" data-idea="${i.id}" data-tone="${M.tone('idea', i.category) || 'basics'}">
       <div class="top">
         <span class="pict-tile" aria-hidden="true">${D.icon(M.ideaPict(i))}</span>
         <div class="idea-name"><div class="name">${i.nameEn}</div>${i.nameJa ? html`<div class="name-ja" lang="ja">${i.nameJa}</div>` : ''}</div>
         ${opts.noDistance ? '' : dist(e.m)}
       </div>
-      <div class="chips">${i.category ? html`<span class="chip">${i.category}</span>` : ''}${i.area ? html`<span class="chip">${i.area}</span>` : ''}${status ? html`<span class="chip chip-strong">${status}</span>` : ''}${i.pending ? html`<span class="chip">Waiting to sync</span>` : ''}</div>
+      <div class="chips">${i.category ? html`<span class="chip chip-tone">${i.category}</span>` : ''}${i.area ? html`<span class="chip">${i.area}</span>` : ''}${status ? html`<span class="chip chip-strong">${status}</span>` : ''}${i.pending ? html`<span class="chip">Waiting to sync</span>` : ''}</div>
       ${i.why ? html`<p class="why">${i.why}</p>` : ''}
       ${i.hours && !/^location:/i.test(i.hours) ? html`<p class="secondary">${i.hours}</p>` : ''}
       ${allergyLine(i)}
@@ -123,9 +124,9 @@
     var st = state(S);
     return html`<section><div class="section-title"><h2>Find nearby</h2></div>
       <div class="quick">${QUICK.map(function (q) {
-        return q[3]
-          ? html`<button class="quick-btn caution" type="button" data-action="quick-sushi">${D.icon(q[2])}<span>${q[0]}</span></button>`
-          : html`<a class="quick-btn" href="${L.search(q[1])}">${D.icon(q[2])}<span>${q[0]}</span></a>`;
+        return q[4]
+          ? html`<button class="quick-btn caution" type="button" data-action="quick-sushi" data-tone="${q[3]}">${D.icon(q[2])}<span>${q[0]}</span></button>`
+          : html`<a class="quick-btn" href="${L.search(q[1])}" data-tone="${q[3]}">${D.icon(q[2])}<span>${q[0]}</span></a>`;
       })}</div>
       ${st.sushi ? html`<div class="sushi-check" role="alert"><p><b>Check before you order.</b> Show the allergy card at the counter: sushi kitchens share boards, knives and broth.</p>
         <div class="actions"><button class="btn" type="button" data-action="cards">Allergy card</button><a class="btn btn-primary" href="${L.search('寿司')}">Open Google Maps</a></div></div>` : ''}
@@ -159,7 +160,8 @@
   function filterBar(st, cats) {
     if (cats.length < 2) return '';
     return html`<div class="filter-chips" role="group" aria-label="Category">${['All'].concat(cats).map(function (c) {
-      return html`<button class="btn filter-chip" type="button" data-action="nearby-cat" data-cat="${c}" aria-pressed="${st.cat === c ? 'true' : 'false'}">${c}</button>`;
+      var t = M.tone('idea', c);
+      return html`<button class="btn filter-chip" type="button" data-action="nearby-cat" data-cat="${c}"${t ? html` data-tone="${t}"` : ''} aria-pressed="${st.cat === c ? 'true' : 'false'}">${c}</button>`;
     })}</div>`;
   }
 

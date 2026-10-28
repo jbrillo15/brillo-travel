@@ -105,9 +105,37 @@ PAIRS += [
     ("text-3", "surface-1", 3.0, "Today's day-row outline"),
 ]
 
+# 0.6 category colors (DESIGN §2 Categories): every surface they sit on or tint.
+CATS = ["cat-food", "cat-sights", "cat-shopping", "cat-around", "cat-stay", "cat-basics"]
+for c in CATS:
+    n = c[4:]
+    PAIRS += [
+        (c, f"mix:{c}:26:surface-2", 3.0, f"{n} pictogram on its tinted tile"),
+        (c, "surface-1", 3.0, f"{n} card / row / envelope edge"),
+        (c, "surface-1", 4.5, f"{n} envelope eyebrow"),
+        (c, "surface-2", 4.5, f"{n} filter / jump button label (on the button fill)"),
+        (c, f"mix:{c}:16:surface-1", 4.5, f"{n} category chip text"),
+        ("on-fill", c, 4.5, f"Pressed {n} filter label"),
+        ("text", f"mix:{c}:20:surface-2", 4.5, f"{n} phrase section header"),
+        ("text-2", f"mix:{c}:20:surface-2", 4.5, f"{n} phrase count"),
+        ("text", f"mix:{c}:14:surface-1", 4.5, f"{n} quick-search label"),
+        ("text-2", f"mix:{c}:9:surface-1", 4.5, f"Secondary text on the {n} idea wash"),
+        ("close", f"mix:{c}:9:surface-1", 4.5, f"Allergy Caution badge on the {n} idea wash"),
+    ]
+PAIRS += [
+    ("text", "mix:allergy:20:surface-2", 4.5, "Allergy phrase section header"),
+    ("text-2", "mix:allergy:20:surface-2", 4.5, "Allergy phrase count"),
+    ("allergy", "surface-2", 4.5, "Allergy jump-button label (on the button fill)"),
+]
+
 # Colors that each carry one meaning must not be confused for each other.
 MEANING = ["osaka", "kyoto", "tokyo", "travel", "now", "ok", "close", "over", "allergy"]
 MIN_DELTA_E = 20  # CIE76; ~2.3 is "just noticeable", 20+ reads as a different color
+# Categories must stay apart from each other and from every meaning color. They can sit beside
+# a state color (Packing's tan next to amber "overdue", a food idea's amber Caution badge), but
+# every category color comes with its own text label and every state with its own words, so the
+# meaning never rests on telling two hues apart. 15 is the floor.
+MIN_DELTA_E_CAT = 15
 
 
 def load_tokens():
@@ -177,6 +205,18 @@ def main():
         ok = d >= MIN_DELTA_E
         failed += not ok
         print(f"- `{a}` vs `{b}`: {d:.1f} {'' if ok else '**FAIL**'}")
+
+    print("\nClosest category pairs, among themselves and against meaning colors (CIE76 ΔE, minimum %d):\n" % MIN_DELTA_E_CAT)
+    cdists = sorted(
+        [(math.dist(lab(t[a]), lab(t[b])), a, b) for a, b in itertools.combinations(CATS, 2)] +
+        [(math.dist(lab(t[a]), lab(t[b])), a, b) for a in CATS for b in MEANING]
+    )
+    for d, a, b in cdists[:6]:
+        ok = d >= MIN_DELTA_E_CAT
+        failed += not ok
+        print(f"- `{a}` vs `{b}`: {d:.1f} {'' if ok else '**FAIL**'}")
+    bad = [x for x in cdists if x[0] < MIN_DELTA_E_CAT]
+    failed += max(0, len(bad) - sum(1 for x in cdists[:6] if x[0] < MIN_DELTA_E_CAT))
 
     print(f"\n{len(PAIRS)} pairs checked, {failed} failed.", file=sys.stderr)
     return 1 if failed else 0
