@@ -309,13 +309,20 @@ suite('e2e v0.4', function () {
         var maybe = Array.prototype.filter.call(sheet.querySelectorAll('.phrase'), function (p) { return /Fake maybe/.test(p.innerText); })[0];
         ok(/Unverified/.test(maybe.innerText), 'unverified chip');
         ok(/Nise tabun/.test(maybe.innerText), 'romaji');
+        var parts = Array.prototype.map.call(maybe.querySelector('.phrase-open').children, function (c) { return c.className; });
+        deepEq(parts.slice(0, 3), ['ja', 'en-line', 'romaji'], 'Japanese, then English, then how to say it');
+        var en = maybe.querySelector('.en-line'), ja = maybe.querySelector('.ja');
+        eq(w.getComputedStyle(en).fontWeight, '700', 'English is bold');
+        ok(parseFloat(w.getComputedStyle(en).fontSize) > parseFloat(w.getComputedStyle(ja).fontSize), 'English is the biggest line');
         E2E.screenChecks(w);
         return E2E.click(w, '[data-card="phrase"][data-id="ph_b2"]');
       }).then(function () {
         var card = w.document.querySelector('#sheet [data-card-view="phrase"]');
         ok(/Unverified/.test(card.innerText), 'full-screen card keeps the label');
         eq(card.querySelector('.phrase-cat').textContent, 'Basics', 'full-screen card names its section');
-        ok(parseFloat(w.getComputedStyle(card.querySelector('.ja-xl')).fontSize) >= 32);
+        ok(parseFloat(w.getComputedStyle(card.querySelector('.ja-xl')).fontSize) >= 32, 'staff still get big Japanese');
+        var order = Array.prototype.map.call(card.querySelectorAll('.ja-xl, .phrase-en, .romaji'), function (c) { return c.className; });
+        deepEq(order, ['ja-xl', 'phrase-en', 'en romaji'], 'full-screen card: Japanese, bold English, then how to say it');
       });
     });
   });

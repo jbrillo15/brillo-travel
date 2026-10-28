@@ -4,6 +4,10 @@ Versions follow semantic versioning. 0.x during the build; 1.0.0 is the trip
 release. The version here must match `js/config.js` and the service worker
 cache name (a unit test checks this).
 
+## 0.4.3
+
+Phrases read in a new order: the Japanese on top, then the English in bold as the line that stands out, then how to say it. On a phrase opened full screen the Japanese stays big for staff, with the English in bold under it.
+
 ## 0.4.2
 
 More color. Six category colors say what kind of thing something is, the same on every screen: lime for food and drink, violet for sights, pink for shopping, cyan for getting around, tan for stays, and periwinkle for basics and help. They tint the pictograms, card edges, filter buttons, phrase sections, quick searches, budget envelopes, expense rows and the Lists overview. City colors still mark the day's line and badges, and the Now, done, budget and allergy colors keep their meanings.

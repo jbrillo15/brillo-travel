@@ -98,8 +98,8 @@
         <ul class="phrases">${by[c].map(function (p) {
         return html`<li class="phrase"><button class="phrase-open" type="button" data-action="cards" data-card="phrase" data-id="${phraseKey(p)}">
             <span class="ja" lang="ja">${p.japanese}</span>
-            ${p.romaji ? html`<span class="romaji">${p.romaji}</span>` : ''}
             <span class="en-line">${p.english}</span>
+            ${p.romaji ? html`<span class="romaji">${p.romaji}</span>` : ''}
             ${p.verified ? '' : html`<span class="chip chip-warn">Unverified</span>`}
           </button>${sayBtn(p)}</li>`;
       })}</ul></section>`;
@@ -110,8 +110,8 @@
       <div class="label phrase-cat">${phraseCat(p)}</div>
       ${p.verified ? '' : html`<div class="label unverified-label">${UNVERIFIED}</div>`}
       <div class="ja-xl" lang="ja">${p.japanese}</div>
+      <p class="phrase-en">${p.english}</p>
       ${p.romaji ? html`<p class="en romaji">${p.romaji}</p>` : ''}
-      <p class="en">${p.english}</p>
       ${sayBtn(p)}
       <p class="hint" data-wake-hint>Turn brightness up so staff can read it.</p>
     </div>`;

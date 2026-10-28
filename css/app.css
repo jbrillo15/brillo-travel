@@ -854,13 +854,16 @@ a.quick-btn { text-decoration: none; }
 .phrases { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
 .phrase { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-2); align-items: start; padding: var(--sp-2); border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-1); }
 .phrase-open { display: grid; gap: 2px; justify-items: start; text-align: left; background: none; border: 0; padding: var(--sp-1) var(--sp-2); color: var(--text); font: inherit; cursor: pointer; min-height: var(--tap); min-width: 0; }
-.phrase-open .ja { font: 700 var(--fs-title-3)/1.35 var(--font-ja); }
+/* Read in this order (Jordan, Oct 28): Japanese on top at body size, the English bold and
+   largest (it's what they read), then how to say it. */
+.phrase-open .ja { font: 500 var(--fs-body)/1.4 var(--font-ja); color: var(--text-2); }
+.phrase-open .en-line { font: 700 var(--fs-title-3)/1.25 var(--font-body); color: var(--text); }
 .phrase-open .romaji { font-size: var(--fs-secondary); color: var(--text-2); font-style: italic; }
-.phrase-open .en-line { font-size: var(--fs-secondary); color: var(--text); }
 .phrase-open .chip { margin-top: 4px; }
 .say-btn { min-height: var(--tap); white-space: nowrap; }
 .staff-card .say-btn { justify-self: start; background: var(--paper); color: var(--paper-ink); border-color: var(--paper-ink-2); }
 .staff-card .romaji { font-style: italic; }
+.staff-card .phrase-en { margin: 0; font: 700 var(--fs-title-3)/1.25 var(--font-body); color: var(--paper-ink); }   /* staff still read the big Japanese */
 .staff-card .phrase-cat { font-size: var(--fs-secondary); color: var(--paper-ink); }
 .staff-card .unverified-label { color: var(--paper-ink); text-transform: none; letter-spacing: 0; border: 1.5px dashed var(--paper-ink-2); border-radius: 4px; padding: 6px 8px; }
 
