@@ -10,7 +10,7 @@
   function tab(rows) { return { values: rows, display: rows.map(function (r) { return r.map(function (v) { return v === null || v === undefined ? '' : String(v); }); }) }; }
 
   var IT_H = ['ID', 'Date', 'Time', 'Slot', 'City', 'Title', 'Kind', 'Place (EN)', 'Place (JA)', 'Maps', 'Getting there',
-    'Notes', 'Booking ref', 'Est cost ¥ pp', 'Allergy risk', 'Booking status', 'Done', 'Updated'];
+    'Notes', 'Booking ref', 'Est cost ¥ pp', 'Allergy risk', 'Booking status', 'Done', 'Updated', 'About'];   // About last: tests index columns by position
   function it(id, date, time, slot, city, title, extra) {
     var r = [id, date, time || '', slot, city, title, '', '', '', '', '', '', '', '', '', '', false, ''];
     Object.keys(extra || {}).forEach(function (k) { r[IT_H.indexOf(k)] = extra[k]; });
@@ -81,7 +81,26 @@
     };
   }
 
+  // Ideas for the Nearby scenarios (fake names, Osaka/Kyoto/Tokyo-like coordinates).
+  // Fake market matches the it_a3 itinerary item by its Japanese name (fallback anchor).
+  var ID_H = ['ID', 'Name (EN)', 'Name (JA)', 'City', 'Area', 'Category', 'Lat', 'Lng', 'Maps', 'Why', 'Hours / notes',
+    'Allergy note', 'Source', 'Status', 'Planned date', 'Added by', 'Updated at', 'Deleted'];
+  function withIdeas(raw) {
+    raw.Ideas = tab([ID_H,
+      ['id_f1', 'Fake market', 'テスト市場', 'Osaka', 'Namba', 'Market', 34.6637, 135.5069, '', 'Fake why: covered market', 'Location: OpenStreetMap', 'High: fake seafood stalls', 'Curated', 'Idea', '', '', '', false],
+      ['id_f2', 'Fake shrine', 'テスト神社', 'Osaka', 'Namba', 'Sight', 34.6615, 135.4967, '', 'Fake why: big stage', 'Location: OpenStreetMap', '', 'Curated', 'Idea', '', '', '', false],
+      ['id_f3', 'Fake noodle bar', 'テスト麺', 'Osaka', 'Namba', 'Food', '34.6650', '135.5010', '', 'Fake why: noodles', '', '', 'Curated', 'Idea', '', '', '', false],
+      ['id_f4', 'Fake garden cafe', '', 'Kyoto', 'Central', 'Café', 35.0090, 135.7590, '', 'Fake why: quiet', '', '', 'Curated', 'Idea', '', '', '', false],
+      ['id_f5', 'Fake tower', 'テストタワー', 'Tokyo', 'Shinjuku', 'Sight', 35.6938, 139.7034, '', 'Fake why: view', '', '', 'Curated', 'Idea', '', '', '', false],
+      ['id_f6', 'Fake pin-less bar', '', 'Osaka', 'Namba', 'Bar', '', '', '', 'Fake why: no coordinates', '', '', 'Jordan', 'Idea', '', 'Jordan', '', false],
+      ['id_f7', 'Fake finished', 'テスト済', 'Osaka', 'Namba', 'Sight', 34.6620, 135.5000, '', '', '', '', 'Curated', 'Done', '', '', '', false],
+      ['id_f8', 'Fake deleted idea', '', 'Osaka', 'Namba', 'Sight', 34.6620, 135.5000, '', '', '', '', 'Curated', 'Idea', '', '', '', true]
+    ]);
+    return raw;
+  }
+
   window.FIXTURES.sheet = good;
+  window.FIXTURES.withIdeas = withIdeas;
   window.FIXTURES.tab = tab;
   window.FIXTURES.IT_H = IT_H;
   window.FIXTURES.it = it;

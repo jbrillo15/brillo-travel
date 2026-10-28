@@ -41,7 +41,7 @@
       case 'budget': return BT.ui.budget.overview(S);
       case 'expense': return BT.ui.budget.form(S, r.arg || 'new');
       case 'calc': return BT.ui.budget.calc(S);
-      case 'nearby': return BT.ui.placeholders.nearby(S);
+      case 'nearby': return BT.ui.nearby.render(S);
       default: return BT.ui.today.render(S);
     }
   }
@@ -397,12 +397,123 @@
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 10000);
   }
 
+  // ---------- Nearby: location and ideas (HANDOFF §8.5; through the outbox) ----------
+  // Location is asked only on Nearby (EC-35): opening the screen, "Use my location",
+  // or "I'm here". A denial isn't asked again until the person taps the button.
+  function locate(force, done) {
+    var st = BT.ui.nearby.state(S);
+    var settled = false, guard = null;
+    function redraw() { if (route().name === 'nearby') { typing() ? deferRender() : nearbyRender(); } }
+    function finish(pos) {
+      if (settled) return;
+      settled = true; clearTimeout(guard);
+      if (done) done(pos);
+      redraw();
+    }
+    if (!('geolocation' in navigator)) { st.geo = 'unavailable'; finish(null); return; }
+    if (!force && st.pos && Date.now() - st.posAt < 60000) { if (done) done(st.pos); return; }
+    if (!force && !done && (st.geo === 'denied' || st.geo === 'asking')) return;
+    st.geo = 'asking';
+    // iOS may never answer while its permission prompt is ignored or the app is in the
+    // background: give up after 10 s so the screen and "I'm here" never hang.
+    guard = setTimeout(function () { if (st.geo === 'asking') st.geo = 'timeout'; finish(null); }, BT.config.geoGiveUpMs);
+    try {
+      navigator.geolocation.getCurrentPosition(function (p) {
+        st.pos = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy };
+        st.posAt = Date.now(); st.geo = 'ok';
+        if (settled) redraw(); else finish(st.pos);   // a late fix still updates the list
+      }, function (e) {
+        if (settled) return;
+        st.geo = e && e.code === 1 ? 'denied' : e && e.code === 3 ? 'timeout' : 'unavailable';
+        finish(null);
+      }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
+    } catch (e) { st.geo = 'unavailable'; finish(null); }
+  }
+  // Nearby redraws keep whatever is typed in "Add an idea" (a filter tap, Done on another
+  // card or a location answer must never empty the form).
+  function ideaDraft() {
+    var f = document.querySelector('form[data-action="add-idea"]');
+    if (!f) return null;
+    var d = {};
+    Array.prototype.forEach.call(f.elements, function (el) {
+      if (!el.name) return;
+      if (el.type === 'radio') { if (el.checked) d[el.name] = el.value; }
+      else if (el.type === 'checkbox') d[el.name] = el.checked;
+      else d[el.name] = el.value;
+    });
+    return d;
+  }
+  function restoreIdeaDraft(d) {
+    var f = d && document.querySelector('form[data-action="add-idea"]');
+    if (!f) return;
+    Object.keys(d).forEach(function (k) {
+      var el = f.elements.namedItem(k);
+      if (!el) return;
+      if (!el.tagName) Array.prototype.forEach.call(el, function (r) { r.checked = r.value === d[k]; });   // a radio group
+      else if (el.type === 'checkbox') el.checked = d[k];
+      else el.value = d[k];
+    });
+  }
+  function nearbyRender() { var d = ideaDraft(); render(); restoreIdeaDraft(d); }
+  function findIdea(id) { return S.vm.ideas.filter(function (i) { return i.id === id; })[0]; }
+  function setIdeaStatus(id, status) {
+    var i = findIdea(id);
+    if (!i || i.status === status) return;
+    var fields = { status: status };
+    if (status === 'Idea' && i.plannedDate) fields.plannedDate = '';   // "Put back" forgets the day
+    change('idea.update', id, fields).then(function (op) { if (op) nearbyRender(); });
+  }
+  function planIdea(form) {
+    var id = form.getAttribute('data-id'), i = findIdea(id);
+    var st = BT.ui.nearby.state(S);
+    if (!i) { st.plan = null; render(); return; }
+    var el = form.elements.namedItem('day');
+    var day = el ? el.value : '';
+    if (!T.isIsoDate(day)) return;
+    // Save sends only what changed against what the form showed (data-orig).
+    var orig = el.getAttribute('data-orig');
+    if (orig === null) orig = i.plannedDate || '';
+    var fields = {};
+    if (i.status !== 'Planned') fields.status = 'Planned';
+    if (day !== orig) fields.plannedDate = day;
+    st.plan = null;
+    if (!Object.keys(fields).length) { nearbyRender(); return; }
+    change('idea.update', id, fields).then(function () { nearbyRender(); });
+  }
+  function addIdea(form) {
+    if (form.hasAttribute('data-busy')) return;          // a second tap while it saves or locates
+    function val(k) { var el = form.elements.namedItem(k); return el ? String(el.value || '').trim() : ''; }
+    var name = val('nameEn');
+    if (!name) { formError(form, 'Type a name for the idea.', 'nameEn'); return; }
+    var fields = { nameEn: name, category: val('category') || 'Other', status: 'Idea' };
+    if (val('city')) fields.city = val('city');
+    if (val('why')) fields.why = val('why');
+    if (S.owner === 'Jordan' || S.owner === 'Lindsay') { fields.source = S.owner; fields.addedBy = S.owner; }
+    var here = form.elements.namedItem('here'), wantHere = !!(here && here.checked);
+    var btn = form.querySelector('button[type="submit"]');
+    form.setAttribute('data-busy', '');
+    if (btn) { btn.disabled = true; btn.textContent = wantHere ? 'Finding where you are…' : 'Saving…'; }
+    function save(pos) {
+      if (pos) { fields.lat = Math.round(pos.lat * 1e6) / 1e6; fields.lng = Math.round(pos.lng * 1e6) / 1e6; }
+      change('idea.add', BT.sync.newId('id_'), fields).then(function (op) {
+        var st = BT.ui.nearby.state(S);
+        if (!op) { form.removeAttribute('data-busy'); if (btn) { btn.disabled = false; btn.textContent = 'Save idea'; } return; }
+        st.adding = false;
+        st.notice = wantHere && !pos ? 'Saved. The phone didn\'t share where you are, so this idea has no map point yet.' : null;
+        nearbyRender();
+      });
+    }
+    if (wantHere) locate(false, save); else save(null);
+  }
+
   function onSubmit(ev) {
     var form = ev.target;
     var a = form.getAttribute && form.getAttribute('data-action');
     if (a === 'add-check') { ev.preventDefault(); addCheck(form); }
     else if (a === 'save-check') { ev.preventDefault(); saveCheck(form); }
     else if (a === 'save-expense') { ev.preventDefault(); saveExpense(form); }
+    else if (a === 'plan-idea') { ev.preventDefault(); planIdea(form); }
+    else if (a === 'add-idea') { ev.preventDefault(); addIdea(form); }
   }
 
   function onClick(ev) {
@@ -437,6 +548,10 @@
       S.sync.discard(el.getAttribute('data-op'));
     } else if (a === 'dismiss-save-error') {
       S.saveError = null; render();
+    } else if (/^(nearby-|idea-|quick-)/.test(a)) {
+      nearbyAction(a, el);
+    } else if (a === 'say') {
+      BT.ui.cards.say(S, el.getAttribute('data-id'));
     } else if (a === 'cards') {
       ev.preventDefault();
       S.sheet = { card: el.getAttribute('data-card') || 'allergy', id: el.getAttribute('data-id'), kind: el.getAttribute('data-kind') };
@@ -463,6 +578,23 @@
         location.hash = '#/today'; location.reload();
       });
     }
+  }
+
+  function nearbyAction(a, el) {
+    var st = BT.ui.nearby.state(S), id = el.getAttribute('data-id');
+    if (a === 'nearby-locate') { locate(true); nearbyRender(); return; }
+    if (a === 'nearby-cat') st.cat = el.getAttribute('data-cat') || 'All';
+    else if (a === 'nearby-all') st.all = !st.all;
+    else if (a === 'nearby-hidden') st.hidden = !st.hidden;
+    else if (a === 'quick-sushi') st.sushi = !st.sushi;
+    else if (a === 'idea-plan') st.plan = id;
+    else if (a === 'idea-plan-cancel') st.plan = null;
+    else if (a === 'idea-add') st.adding = true;
+    else if (a === 'idea-add-cancel') st.adding = false;
+    else if (a === 'idea-status') { setIdeaStatus(id, el.getAttribute('data-status')); return; }
+    if (a !== 'idea-add-cancel') st.notice = null;
+    nearbyRender();
+    if (a === 'idea-add') { var n = document.querySelector('form[data-action="add-idea"] input[name="nameEn"]'); if (n) n.focus(); }
   }
 
   function onInput(ev) {
@@ -531,7 +663,10 @@
   var timer = null;
   function startTriggers() {
     document.addEventListener('visibilitychange', function () {
-      if (document.visibilityState === 'visible') { if (!holdRender()) render(); S.sync.sync('foreground'); }   // EC-04: re-derive "today" (an open edit form keeps its text)
+      if (document.visibilityState === 'visible') {
+        if (!holdRender()) render(); S.sync.sync('foreground');   // EC-04: re-derive "today" (an open edit form keeps its text)
+        if (route().name === 'nearby' && S.setup) locate(false);   // back from Maps a few blocks on: re-measure (a fix under 60 s is kept)
+      }
       else S.sync.stopRetry();
     });
     window.addEventListener('online', function () { S.sync.sync('online'); });
@@ -583,13 +718,21 @@
     document.addEventListener('submit', onSubmit);
     document.addEventListener('focusout', function () { setTimeout(flushDeferred, 0); });
     overlay.addEventListener('click', function (e) { if (e.target === overlay) { S.sheet = null; renderSheet(); } });
+    // Voices load after the page on iOS: redraw an open phrase card so Play appears (AC-C3).
+    try {
+      if ('speechSynthesis' in window && window.speechSynthesis.addEventListener) {
+        window.speechSynthesis.addEventListener('voiceschanged', function () { if (S.sheet) renderSheet(); });
+      }
+    } catch (e) { /* no speech: Play stays hidden */ }
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && S.sheet) { S.sheet = null; renderSheet(); } });
     var enterTimer = null;
     window.addEventListener('hashchange', function () {
       S.sheet = null;
       if (route().name !== 'expense') S.prefill = null;
+      if (S.nearby) { S.nearby.plan = null; S.nearby.adding = false; S.nearby.sushi = false; S.nearby.notice = null; }
       root.setAttribute('data-enter', '');      // screen entrance plays on route changes only (DESIGN §8)
       render(); window.scrollTo(0, 0);
+      if (route().name === 'nearby' && S.setup) locate(false);
       clearTimeout(enterTimer);
       enterTimer = setTimeout(function () { root.removeAttribute('data-enter'); }, 400);
     });
@@ -600,6 +743,7 @@
       S.storageError = e; S.env = BT.store.activeEnv();
     }).then(function () {
       render();
+      if (route().name === 'nearby' && S.setup) locate(false);
       registerWorker();
       if (S.sync) { S.sync.sync('open'); startTriggers(); }
     });

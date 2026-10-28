@@ -20,6 +20,7 @@
         <span class="time">${whenLabel(it)}</span><span class="rail"></span>
         <div class="body">
           <a class="title" href="#/item/${encodeURIComponent(it.id || '')}">${D.icon(M.pict(it))}<span>${it.title}</span></a>
+          ${it.about ? html`<span class="about">${it.about}</span>` : ''}
           ${it.placeJa ? html`<span class="place-ja ja" lang="ja">${it.placeJa}</span>` : ''}
           ${(meta.length || it.allergyRisk) ? html`<span class="meta">${meta}${D.allergyBadge(it.allergyRisk)}</span>` : ''}
         </div>
@@ -38,7 +39,9 @@
   // In-app hotel card (DESIGN §6 #4). opts.routeHome adds the after-6-PM button.
   function hotelCard(h, opts) {
     opts = opts || {};
-    var dest = { placeJa: h.addressJa || h.nameJa, placeEn: h.addressEn || h.nameEn, maps: h.maps };
+    // The Japanese address beats a saved Maps link here: the link may only be a map pin
+    // for Nearby's fallback (v0.4), and Route home must stay transit directions.
+    var dest = { placeJa: h.addressJa || h.nameJa, placeEn: h.addressEn || h.nameEn, maps: h.addressJa ? '' : h.maps };
     return html`<div class="hotel">
       <span class="eyebrow">${opts.eyebrow || 'Tonight'}</span>
       <div><div class="name">${h.nameEn}</div>${h.nameJa ? html`<div class="name-ja ja" lang="ja">${h.nameJa}</div>` : ''}</div>

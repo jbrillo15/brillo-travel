@@ -5,13 +5,14 @@
   var BT = window.BT = window.BT || {};
 
   BT.config = {
-    version: '0.3.2',
+    version: '0.4.0',
     api: 1,
     minServerForWrites: '0.2.0',  // older scripts have no mutate; changes wait on the phone
     maxOpsPerPush: 50,
     pushDebounceMs: 2000,         // sync 2 s after a local change (HANDOFF §7)
     requestTimeoutMs: 20000,
     autoSyncMs: 5 * 60 * 1000,
+    geoGiveUpMs: 10000,           // Nearby stops waiting for a location answer (iOS can stay silent)
     tripTz: 'Asia/Tokyo',        // D10: all trip logic runs in Japan time
     homeTz: 'America/Los_Angeles',
     envs: ['staging', 'prod'],

@@ -1,5 +1,6 @@
-/* Info, basic (HANDOFF §8.7). Verified embassy and hotline numbers arrive in
-   Phase 3 from Settings; 110 and 119 are Japan's national emergency numbers. */
+/* Info (HANDOFF §8.7). 110 and 119 are Japan's national emergency numbers and
+   always show. Every other number comes from Settings → Emergency contacts, one
+   per line ("Label: number (note)"), each checked against an official page. */
 (function () {
   'use strict';
   var BT = window.BT = window.BT || {};
@@ -9,6 +10,26 @@
   function telBtn(label, number) {
     var t = L.tel(number);
     return html`<a class="info-row" href="${t ? t.href : '#'}"><span>${label}</span><b class="num">${number}</b></a>`;
+  }
+
+  // "Fake hotline (24 h, English): 050-0000-0000 (note)" → { label, number, note }.
+  // Digits join only by hyphens (or a bracketed area code), so a note after a space,
+  // like "24 hours", never becomes part of the number that's dialed.
+  var PHONE_RE = /(\+?(?:\(\d{1,5}\)\s?)?\d[\d-]{5,}\d)/;
+  function contacts(text) {
+    return String(text || '').split(/\r?\n/).map(function (line) {
+      line = line.trim();
+      if (!line) return null;
+      var m = PHONE_RE.exec(line);
+      if (!m) return { text: line };
+      return { label: line.slice(0, m.index).replace(/[\s:|–—-]+$/, '') || 'Call', number: m[1].trim(),
+        note: line.slice(m.index + m[1].length).replace(/^[\s|,;–—-]+/, '') };
+    }).filter(Boolean);
+  }
+  function contactRow(c) {
+    if (!c.number) return html`<p class="secondary">${c.text}</p>`;
+    var t = L.tel(c.number);
+    return html`<a class="info-row contact" href="${t ? t.href : '#'}"><span>${c.label}${c.note ? html`<small class="secondary">${c.note}</small>` : ''}</span><b class="num">${c.number}</b></a>`;
   }
 
   function render(S) {
@@ -22,8 +43,9 @@
             <a class="info-row" href="tel:110"><span>Police</span><b class="num">110</b></a>
             <a class="info-row" href="tel:119"><span>Fire and ambulance</span><b class="num">119</b></a>
           </div>
-          ${s.emergencyContacts ? html`<p class="pre">${s.emergencyContacts}</p>` : html`<p class="empty">Embassy, consulate and visitor hotline numbers are added (verified) in v0.4.</p>`}
-          ${s.insurance ? html`<div class="kv"><span class="eyebrow">Travel insurance</span><span class="pre">${s.insurance}</span></div>` : ''}
+          ${s.emergencyContacts ? html`<div class="info-list">${contacts(s.emergencyContacts).map(contactRow)}</div>`
+            : html`<p class="empty">Visitor hotline, embassy and consulate numbers aren't in the sheet yet (Settings → Emergency contacts).</p>`}
+          <div class="info-card"><span class="eyebrow">Travel insurance</span>${s.insurance ? html`<span class="pre">${s.insurance}</span>` : html`<span>Not set. Add the policy, number and claims phone to Settings → Insurance in the sheet.</span>`}</div>
         </section>
         <section><div class="section-title"><h2>Hotels</h2></div>
           ${vm.hotels.map(function (h) {
@@ -63,5 +85,5 @@
     };
   }
 
-  BT.ui.info = { render: render };
+  BT.ui.info = { render: render, contacts: contacts };
 })();

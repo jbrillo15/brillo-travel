@@ -44,6 +44,7 @@
       body: html`
         ${legs.length ? html`<section><div class="section-title"><h2>Travel</h2></div>${P.legList(legs)}</section>` : ''}
         <section>${P.line(items, { now: nn.now })}</section>
+        ${BT.ui.nearby.planned(S, date)}
         ${out && out !== hotel ? html`<p class="banner-quiet">Check out of <b>${out.nameEn}</b>${out.checkOutTime ? ' by ' + T.fmtClock(out.checkOutTime) : ''}.</p>` : ''}
         ${hotel ? P.hotelCard(hotel, { eyebrow: 'Hotel that night' }) : ''}`
     };
@@ -61,6 +62,7 @@
       header: D.plainHeader(T.fmtDay(it.date), { back: D.backLink('#/day/' + it.date, T.fmtDay(it.date)), sub: P.whenLabel(it) + ' · ' + it.city }),
       body: html`<article class="item-detail">
         <h2 class="item-title">${D.icon(M.pict(it))}<span>${it.title}</span></h2>
+        ${it.about ? html`<p class="about about-lead">${it.about}</p>` : ''}
         ${it.allergyRisk ? html`<div>${D.allergyBadge(it.allergyRisk)}</div>` : ''}
         ${it.placeEn || it.placeJa ? html`<div class="kv"><span class="eyebrow">Place</span>${it.placeEn ? html`<span>${it.placeEn}</span>` : ''}${it.placeJa ? html`<span class="ja big-ja" lang="ja">${it.placeJa}</span>` : ''}</div>` : ''}
         ${row('Getting there', it.gettingThere)}

@@ -8,7 +8,7 @@
  * Actions: ping, snapshot, mutate (Phase 2 write path), resetStaging (staging only).
  */
 
-var SERVER_VERSION = '0.2.1';
+var SERVER_VERSION = '0.2.2';
 var API = 1;
 var READ_TABS = ['Settings', 'Itinerary', 'Hotels', 'Transportation', 'Expenses', 'Ideas', 'Checklists', 'Phrases'];
 var ID_PREFIX = { Itinerary: 'it_', Hotels: 'ho_', Transportation: 'tr_', Expenses: 'ex_', Ideas: 'id_', Checklists: 'ck_', Phrases: 'ph_' };

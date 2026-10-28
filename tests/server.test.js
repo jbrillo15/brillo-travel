@@ -44,7 +44,7 @@ suite('server', function () {
   test('snapshot: response shape (HANDOFF §6)', function () {
     STUB.reset(tabs());
     var r = snap();
-    eq(r.ok, true); eq(r.api, 1); eq(r.serverVersion, '0.2.1'); eq(r.env, 'staging');
+    eq(r.ok, true); eq(r.api, 1); eq(r.serverVersion, '0.2.2'); eq(r.env, 'staging');
     ok(/^[0-9a-f]{16}$/.test(r.rev), 'rev hex');
     ok(!isNaN(Date.parse(r.generatedAt)));
     deepEq(Object.keys(r.data).sort(), ['checklists', 'expenses', 'hotels', 'ideas', 'itinerary', 'phrases', 'settings', 'transportation']);
@@ -190,7 +190,7 @@ suite('server', function () {
   test('mutate: checklist.update ticks the row, fills Done by / Done at / Updated at, and logs it', function () {
     STUB.reset(tabs());
     var r = mutate([op('checklist.update', 'ck_1', { done: true, doneBy: 'Lindsay' }, at(1))]);
-    eq(r.ok, true); eq(r.api, 1); eq(r.serverVersion, '0.2.1');
+    eq(r.ok, true); eq(r.api, 1); eq(r.serverVersion, '0.2.2');
     eq(r.results.length, 1);
     eq(r.results[0].status, 'applied');
     eq(r.results[0].serverUpdatedAt, at(1));
@@ -358,6 +358,36 @@ suite('server', function () {
     eq(cell('Itinerary', 'it_a1', 'Done'), true);
     eq(cell('Itinerary', 'it_a1', 'Updated'), at(1));
     eq(mutate([op('itinerary.setDone', 'it_a1', { title: 'x' }, at(2))]).results[0].status, 'rejected', 'only Done can change');
+  });
+
+  test('v0.4 Nearby ops: idea.add with coordinates and who; "Put back" clears the planned day', function () {
+    STUB.reset(tabs());
+    var f = { nameEn: 'Fake here', category: 'Food', city: 'Osaka', status: 'Idea', lat: 34.6616, lng: 135.4968, source: 'Lindsay', addedBy: 'Lindsay', why: 'Fake why' };
+    eq(mutate([op('idea.add', 'id_near01', f, at(1))]).results[0].status, 'applied');
+    eq(cell('Ideas', 'id_near01', 'Lat'), 34.6616); eq(cell('Ideas', 'id_near01', 'Lng'), 135.4968);
+    eq(cell('Ideas', 'id_near01', 'Source'), 'Lindsay'); eq(cell('Ideas', 'id_near01', 'Added by'), 'Lindsay');
+    eq(mutate([op('idea.add', 'id_near02', { nameEn: 'x', lat: '34.6' }, at(1))]).results[0].status, 'rejected', 'coordinates are numbers');
+    eq(mutate([op('idea.add', 'id_near03', { nameEn: 'x', source: 'Penny' }, at(1))]).results[0].status, 'rejected', 'source is a dropdown');
+    mutate([op('idea.update', 'id_near01', { status: 'Planned', plannedDate: '2026-11-20' }, at(2))]);
+    eq(mutate([op('idea.update', 'id_near01', { status: 'Idea', plannedDate: '' }, at(3))]).results[0].status, 'applied');
+    eq(cell('Ideas', 'id_near01', 'Status'), 'Idea'); eq(cell('Ideas', 'id_near01', 'Planned date'), '');
+    var i = snap().data.ideas.filter(function (x) { return x.id === 'id_near01'; })[0];
+    eq(i.lat, 34.6616); eq(i.plannedDate, '');
+  });
+
+  test('About inserted after Title (as on the real sheet): read by header, and Done still writes the right cell', function () {
+    STUB.reset(tabs(function (t) {
+      var rows = t.Itinerary.values, last = rows[0].indexOf('About');
+      rows.forEach(function (r) { if (r.length > last) r.splice(last, 1); });   // the fixture keeps About last; move it
+      var after = rows[0].indexOf('Title') + 1;
+      rows.forEach(function (r, n) { r.splice(after, 0, n === 0 ? 'About' : n === 1 ? 'Fake about' : ''); });
+    }));
+    var s = snap();
+    eq(s.data.itinerary.filter(function (x) { return x.id === 'it_a1'; })[0].about, 'Fake about');
+    eq(s.issues.filter(function (x) { return x.severity === 'error'; }).length, 0);
+    eq(mutate([op('itinerary.setDone', 'it_a1', { done: true }, at(1))]).results[0].status, 'applied');
+    eq(cell('Itinerary', 'it_a1', 'Done'), true);
+    eq(cell('Itinerary', 'it_a1', 'About'), 'Fake about', 'About untouched');
   });
 
   // Ship-check 2026-10-21: a renamed header used to drop the value while reporting "applied".

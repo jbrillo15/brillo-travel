@@ -791,3 +791,60 @@ h1, h2, h3, .display, .topbar .greeting, .nn-title, .hotel .name, .idea .name, .
 /* Tap debug readout (staging Developer setting only) */
 .tap-debug { position: fixed; left: 4px; right: 4px; top: calc(env(safe-area-inset-top, 0px) + 28px); z-index: 50; margin: 0; padding: 6px; max-height: 40vh; overflow: hidden;
   background: rgba(0, 0, 0, 0.85); color: #fff; font: 13px/1.3 ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-all; pointer-events: none; border-radius: 6px; }
+
+/* ---------- About line (v0.4, HANDOFF §5, §8.2) ---------- */
+.stop .about, .now-next .about { font-size: var(--fs-secondary); color: var(--text-2); line-height: 1.35; }
+.about-lead { margin: 0; color: var(--text-2); }
+
+/* ---------- Nearby (v0.4, HANDOFF §8.5; DESIGN §6 #7) ---------- */
+.nearby-head { display: grid; gap: var(--sp-2); justify-items: start; }
+.nearby-note { margin: 0; font-size: var(--fs-secondary); color: var(--text-2); }
+.nearby-note.is-fallback { padding: var(--sp-3) var(--sp-4); border-radius: var(--r-card); background: var(--surface-2); color: var(--text); }
+.add-idea-btn { justify-self: start; }
+.idea-list { display: grid; gap: var(--sp-3); }
+.content > section > .idea + .idea { margin-top: 0; }
+.idea .top { align-items: center; }
+.idea .idea-name { flex: 1; min-width: 0; }
+.idea .pict-tile { width: 2.5rem; height: 2.5rem; }
+.idea .pict-tile svg { width: 1.4rem; height: 1.4rem; }
+.idea.is-pending { border-style: dashed; }
+.chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.chips:empty { display: none; }
+.chip-strong { background: var(--text); color: var(--on-fill); }
+.chip-warn { background: transparent; color: var(--close); box-shadow: inset 0 0 0 1.5px var(--close); }
+.idea .allergy-note .allergy-badge { flex: none; }
+.filter-chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.filter-chip { min-height: var(--tap); }   /* filter buttons need 44 pt (DESIGN §5) */
+.filter-chip[aria-pressed="true"] { background: var(--text); border-color: var(--text); color: var(--on-fill); }
+a.quick-btn { text-decoration: none; }
+.sushi-check { display: grid; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border-radius: var(--r-card); border: 1px solid var(--close); background: var(--surface-1); }
+.sushi-check p { margin: 0; }
+.sushi-check b { color: var(--close); }
+.plan-form { display: grid; gap: var(--sp-3); }
+.add-idea .choices { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+
+/* ---------- Medical section on the allergy card (v0.4, HANDOFF §8.6) ---------- */
+.staff-card .medical { display: grid; gap: var(--sp-3); }
+.staff-card .band-medical { margin: 0 calc(-1 * var(--sp-4)); border-radius: 0; background: var(--paper-ink); color: var(--paper); }
+.staff-card .ja-l { font-family: var(--font-ja); font-size: var(--fs-card-ja); font-weight: 700; line-height: 1.35; }
+
+/* ---------- Phrase kit (v0.4, HANDOFF §8.6) ---------- */
+.card-link-strong { border-color: var(--text-3); }
+.phrase-kit { display: grid; gap: var(--sp-4); }
+.phrase-group { display: grid; gap: var(--sp-2); }
+.phrase-group h3 { margin: 0; }
+.phrases { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
+.phrase { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-2); align-items: start; padding: var(--sp-2); border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-1); }
+.phrase-open { display: grid; gap: 2px; justify-items: start; text-align: left; background: none; border: 0; padding: var(--sp-1) var(--sp-2); color: var(--text); font: inherit; cursor: pointer; min-height: var(--tap); min-width: 0; }
+.phrase-open .ja { font: 700 var(--fs-title-3)/1.35 var(--font-ja); }
+.phrase-open .romaji { font-size: var(--fs-secondary); color: var(--text-2); font-style: italic; }
+.phrase-open .en-line { font-size: var(--fs-secondary); color: var(--text); }
+.phrase-open .chip { margin-top: 4px; }
+.say-btn { min-height: var(--tap); white-space: nowrap; }
+.staff-card .say-btn { justify-self: start; background: var(--paper); color: var(--paper-ink); border-color: var(--paper-ink-2); }
+.staff-card .romaji { font-style: italic; }
+.staff-card .unverified-label { color: var(--paper-ink); text-transform: none; letter-spacing: 0; border: 1.5px dashed var(--paper-ink-2); border-radius: 4px; padding: 6px 8px; }
+
+/* Info: contact notes under the label */
+.info-row.contact > span { display: grid; gap: 2px; padding-block: var(--sp-2); }
+.info-row.contact small { font-size: var(--fs-caption); }

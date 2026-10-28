@@ -28,6 +28,7 @@
       var meta = [P.whenLabel(it)];
       return html`<div class="nn-row${cls}"><span class="nn-tag">${tag}</span><div>
         <a class="nn-title" href="#/item/${encodeURIComponent(it.id || '')}">${D.icon(M.pict(it))}<span>${it.title}</span></a>
+        ${it.about ? html`<div class="about">${it.about}</div>` : ''}
         <div class="nn-meta">${meta.join(' · ')}${it.placeJa ? html` · <span class="ja" lang="ja">${it.placeJa}</span>` : ''} ${D.allergyBadge(it.allergyRisk)}</div>
       </div></div>`;
     }
@@ -113,6 +114,7 @@
         ${legs.length ? html`<section><div class="section-title"><h2>Travel today</h2></div>${P.legList(legs)}</section>` : ''}
         <section><div class="section-title"><h2>${nn.now || nn.next ? 'Rest of today' : 'Today'}</h2><span class="secondary">${items.length} ${items.length === 1 ? 'stop' : 'stops'}</span></div>
           ${P.line(items, { now: nn.now })}</section>
+        ${BT.ui.nearby.planned(S, day)}
         ${out && out !== tonight ? html`<p class="banner-quiet">Check out of <b>${out.nameEn}</b>${out.checkOutTime ? ' by ' + T.fmtClock(out.checkOutTime) : ''} today.</p>` : ''}
         ${tonight ? P.hotelCard(tonight, { routeHome: minutes >= 18 * 60 }) : ''}`
     };

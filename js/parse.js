@@ -81,7 +81,7 @@
   var TABS = {
     itinerary: { tab: 'Itinerary', required: ['ID', 'Date', 'Slot', 'City', 'Title'], cols: [
       ['ID', 'id'], ['Date', 'date', 'date'], ['Time', 'time', 'time'], ['Slot', 'slot'], ['City', 'city'],
-      ['Title', 'title'], ['Kind', 'kind'], ['Place (EN)', 'placeEn'], ['Place (JA)', 'placeJa'], ['Maps', 'maps'],
+      ['Title', 'title'], ['About', 'about'], ['Kind', 'kind'], ['Place (EN)', 'placeEn'], ['Place (JA)', 'placeJa'], ['Maps', 'maps'],
       ['Getting there', 'gettingThere'], ['Notes', 'notes'], ['Booking ref', 'bookingRef'],
       ['Est cost ¥ pp', 'estCost', 'money'], ['Allergy risk', 'allergyRisk'], ['Booking status', 'bookingStatus'],
       ['Done', 'done', 'bool'], ['Updated', 'updated']] },
@@ -127,7 +127,9 @@
     ['FX rate (fallback)', 'fxFallback', 'number'], ['Min app version', 'minAppVersion', 'text'],
     ['Insurance', 'insurance', 'text'], ['Emergency contacts', 'emergencyContacts', 'text'],
     // Shown on the allergy card as "look for these on labels"; kept in the sheet, not the public code.
-    ['Allergen words', 'allergenWords', 'text']
+    ['Allergen words', 'allergenWords', 'text'],
+    // Shown large in the allergy card's Medical section; kept in the sheet for the same reason.
+    ['Medical words', 'medicalWords', 'text']
   ];
 
   // ---------- header mapping (EC-11) ----------

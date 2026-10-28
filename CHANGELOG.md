@@ -4,6 +4,19 @@ Versions follow semantic versioning. 0.x during the build; 1.0.0 is the trip
 release. The version here must match `js/config.js` and the service worker
 cache name (a unit test checks this).
 
+## 0.4.0
+
+Nearby, cards and phrases.
+
+- **Nearby:** ideas from the sheet sorted by walking time from where you are (80 m a minute), with a category filter and "Show all by city". Each idea shows its English and Japanese name, why it's worth it, its allergy note, and Directions, Add to a day, Done, Skip and a taxi card. A planned idea shows on that day's Today and Trip screens, offline too. Location is asked only on Nearby; without it, the list sorts from today's plan or tonight's hotel and says so.
+- **Quick searches** open Google Maps for ramen, sushi (after an allergy-card reminder), cafés, convenience stores, ATMs, pharmacies, coin lockers and restrooms.
+- **Add an idea** with a name, category, city and note, and "I'm here" to save the spot.
+- **Allergy card:** a Medical section under the food allergy text, from verified sheet rows, with the sheet's medical words shown large.
+- **Phrases:** from the Cards button, grouped by Basics, Restaurant, Allergy, Directions, Stores, Hotel, Emergency and Taxi. Japanese large with romaji and English, a Play button when the phone has a Japanese voice, an "Unverified" label where the wording isn't from a published source, and each phrase full screen on a tap.
+- **Info:** visitor hotline, embassy and consulate numbers from the sheet's Settings; 110 and 119 always show; insurance shows "Not set" until it's added.
+- **About line:** a short "what is this place" line under each plan item's title on Today and Trip, from the sheet's new About column.
+- Script 0.2.2 reads the About column and the Medical words setting.
+
 ## 0.3.2
 
 Staging only: a "tap debug" switch in Settings → Developer that shows on screen what each tap reaches, to find why text boxes don't take taps on iPhone. The real-trip app never shows it.

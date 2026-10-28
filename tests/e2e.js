@@ -61,6 +61,9 @@
         var stub = E2E.fetchStub || function () { return Promise.reject(new TypeError('offline (stub)')); };
         E2E.fetchStub = null;
         if (w.BT && w.BT.api) w.BT.api.fetch = stub;
+        // Location: denied unless a test says otherwise (never a real prompt in the pane).
+        E2E.geo(w, E2E.geoStub || null);
+        E2E.geoStub = null;
         var tries = 0;
         (function wait() {
           var main = w.document.getElementById('main');
@@ -147,6 +150,20 @@
     fn.calls = calls;
     fn.actions = function () { return calls.map(function (c) { return c.action; }); };
     return fn;
+  };
+  // Fake geolocation in the app frame: pos = { lat, lng } answers; null denies; 'timeout' times
+  // out; 'never' never calls back (an ignored iOS permission prompt).
+  E2E.geo = function (w, pos) {
+    var fake = { calls: 0, getCurrentPosition: function (ok, err) {
+      fake.calls++;
+      if (pos === 'never') return;
+      setTimeout(function () {
+        if (pos && pos.lat !== undefined) ok({ coords: { latitude: pos.lat, longitude: pos.lng, accuracy: 15 } });
+        else err({ code: pos === 'timeout' ? 3 : 1, message: 'fake' });
+      }, 5);
+    } };
+    Object.defineProperty(w.navigator, 'geolocation', { value: fake, configurable: true });
+    return fake;
   };
   E2E.wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms || 80); }); };
   E2E.outbox = function () {

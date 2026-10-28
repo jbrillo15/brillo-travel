@@ -121,7 +121,7 @@ suite('e2e', function () {
   });
 
   test('AC-C1 / AC-C2: the Cards button opens the not-set-up allergy card in one tap, from every screen', function () {
-    var screens = ['#/today', '#/trip', '#/day/2026-11-20', '#/item/it_a3', '#/info', '#/settings', '#/lists'];
+    var screens = ['#/today', '#/trip', '#/day/2026-11-20', '#/item/it_a3', '#/info', '#/settings', '#/lists', '#/budget', '#/nearby'];
     return E2E.seed({ jst: '2026-11-20T10:00' }).then(function () { return E2E.load(); }).then(function (w) {
       var chain = Promise.resolve();
       screens.forEach(function (h) {

@@ -99,15 +99,5 @@
     };
   }
 
-  function placeholder(title, version, what) {
-    return function () {
-      return { city: null, header: D.plainHeader(title),
-        body: html`<section class="placeholder"><p>${what}</p><p class="secondary">Arrives in ${version}.</p></section>` };
-    };
-  }
-
   BT.ui.settings = { render: settings, setup: setup, health: health };
-  BT.ui.placeholders = {
-    nearby: placeholder('Nearby', 'v0.4', 'Ideas near you and quick Google Maps searches.')
-  };
 })();

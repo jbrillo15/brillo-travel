@@ -22,7 +22,7 @@
       cities: s.cities && s.cities.length ? s.cities : c.defaults.cities,
       minAppVersion: s.minAppVersion || null,
       insurance: s.insurance || null, emergencyContacts: s.emergencyContacts || null,
-      allergenWords: s.allergenWords || null,
+      allergenWords: s.allergenWords || null, medicalWords: s.medicalWords || null,
       fxLive: s.fxLive, fxFallback: s.fxFallback,
       dailyBudget: s.dailyBudget, shoppingBudget: s.shoppingBudget, startingCash: s.startingCash,
       largeAmountConfirm: typeof s.largeAmountConfirm === 'number' && s.largeAmountConfirm > 0 ? s.largeAmountConfirm : 20000
@@ -82,6 +82,7 @@
       checklists: (d.checklists || []).filter(function (c) { return !c.deleted; }),
       expenses: (d.expenses || []).filter(function (e) { return !e.deleted; }),
       phrases: d.phrases || [],
+      ideas: (d.ideas || []).filter(function (i) { return !i.deleted && i.nameEn; }),
       issues: (snapshot && snapshot.issues) || [],
       staleTabs: (snapshot && snapshot.staleTabs) || [],
       hasData: !!(snapshot && snapshot.data)
@@ -129,6 +130,23 @@
     return vm.phrases.filter(function (p) {
       return /^allergy$/i.test(p.category || '') && p.card === true && p.verified === true && p.japanese;
     })[0] || null;
+  }
+
+  // The Medical section under the allergy card (HANDOFF §8.6): verified Emergency rows
+  // marked Card. Same rule as the allergy card: unverified text never shows (AC-C2).
+  function medicalCards(vm) {
+    return vm.phrases.filter(function (p) {
+      return /^emergency$/i.test(p.category || '') && p.card === true && p.verified === true && p.japanese;
+    });
+  }
+
+  // ---------- ideas (HANDOFF §8.5) ----------
+  var IDEA_PICT = { Food: 'p-food', Sight: 'p-camera', Shopping: 'p-bag', 'Café': 'p-cafe', Bar: 'p-lantern', Market: 'p-store', Other: 'p-other' };
+  var IDEA_CATS = ['Food', 'Sight', 'Shopping', 'Café', 'Bar', 'Market', 'Other'];
+  function ideaPict(i) { return IDEA_PICT[i.category] || 'p-other'; }
+  function isOpenIdea(i) { return i.status !== 'Done' && i.status !== 'Skip'; }
+  function plannedOn(vm, day) {
+    return (vm.ideas || []).filter(function (i) { return i.status === 'Planned' && i.plannedDate === day; });
   }
 
   function groupRef(ref) { return String(ref || '').replace(/\s+/g, '').replace(/(.{4})(?=.)/g, '$1 '); }
@@ -181,6 +199,7 @@
     overduePreTrip: overduePreTrip, nextSort: nextSort, LIST_ORDER: LIST_ORDER, settingsWithDefaults: settingsWithDefaults,
     tonightHotel: tonightHotel, checkoutHotel: checkoutHotel, cityFor: cityFor,
     cityClass: knownCityClass, cityCode: cityCode, cityJa: cityJa, legsOn: legsOn, tripDays: tripDays,
-    pict: pict, legPict: legPict, allergyCard: allergyCard, groupRef: groupRef, semverLess: semverLess
+    pict: pict, legPict: legPict, allergyCard: allergyCard, medicalCards: medicalCards, groupRef: groupRef, semverLess: semverLess,
+    ideaPict: ideaPict, isOpenIdea: isOpenIdea, plannedOn: plannedOn, IDEA_CATS: IDEA_CATS
   };
 })();
