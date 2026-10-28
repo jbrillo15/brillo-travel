@@ -298,6 +298,8 @@ suite('e2e v0.4', function () {
       return E2E.click(w, '.cards-btn').then(function () {
         var btn = w.document.querySelector('#sheet .sheet-top .phrases-btn');
         ok(btn && /Phrases/.test(btn.textContent), 'a Phrases button in the Cards header');
+        eq(w.getComputedStyle(btn).backgroundColor, 'rgb(166, 214, 90)', 'bright lime fill');
+        eq(w.getComputedStyle(btn).color, 'rgb(17, 18, 20)', 'dark label on the lime');
         ok(w.document.querySelector('#sheet [data-card-view="allergy"]'), 'the allergy card is still what opens first (AC-C1)');
         return E2E.click(w, '#sheet .sheet-top .phrases-btn');
       }).then(function () {

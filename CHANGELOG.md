@@ -4,6 +4,10 @@ Versions follow semantic versioning. 0.x during the build; 1.0.0 is the trip
 release. The version here must match `js/config.js` and the service worker
 cache name (a unit test checks this).
 
+## 0.4.5
+
+The Phrases button in the Cards header is bright lime instead of white, so it stands out.
+
 ## 0.4.4
 
 - A bold **Phrases** button sits in the Cards header beside Close, so the phrase list is one tap from the moment Cards opens (the allergy card still opens first, unmoved). On a phrase it reads "All phrases".

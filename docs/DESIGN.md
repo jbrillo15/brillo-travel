@@ -71,7 +71,7 @@ What kind of thing something is. Set `data-tone="<name>"` on a container; childr
 | `--cat-stay` | `#C99A6B` | Stay | Hotel phrases · Lodging expenses · Bookings envelope · Packing list |
 | `--cat-basics` | `#8FA8FF` | Basics & help | Basics and Emergency phrases · Other ideas and expenses, ATM withdrawals · Cash on hand · ATM and Pharmacy searches (cash is one color everywhere, Jordan Oct 28) · Pre-trip list · any list or category the app doesn't know |
 
-**Where they go:** pictogram tiles (the symbol in the color on a 26% tint), a 4 px card or row edge, a soft tint behind a section header (20%) or card (9%), chip text and filter outlines. **Never** on the rail, station marks, day badges, the tab bar or any state (Now, done, budget status, sync, allergy). The Allergy phrase section uses `--allergy` instead (Reserved meanings).
+**Where they go:** pictogram tiles (the symbol in the color on a 26% tint), a 4 px card or row edge, a soft tint behind a section header (20%) or card (9%), chip text and filter outlines. **Never** on the rail, station marks, day badges, the tab bar or any state (Now, done, budget status, sync, allergy). The Allergy phrase section uses `--allergy` instead (Reserved meanings). **One exception (Jordan, Oct 28):** the **Phrases** button in the Cards header is filled with `--cat-food` lime (dark label) so the most-used card stands out; there it means "Phrases", not food. Plain yellow and green were ruled out because `--now` gold and `--ok` mint already mean Now and done.
 
 ### Depth (0.5)
 
